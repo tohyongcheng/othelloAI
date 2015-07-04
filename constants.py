@@ -1,4 +1,4 @@
-MOVE_SEC      = 1  #time to pause after move so that it can viewed
+MOVE_SEC      = 0.1  #time to pause after move so that it can viewed
 
 #below are the TCP/IP info for connecting servers and clients
 TCP_PORT_1 = 12342
@@ -34,3 +34,4 @@ BOTTOM       = ( 1, 0)
 BOTTOM_RIGHT = ( 1, 1)
 DIRECTIONS = (TOP_LEFT, TOP, TOP_RIGHT, LEFT, RIGHT, BOTTOM_LEFT, BOTTOM, BOTTOM_RIGHT)
 
+INFINITY = float('inf')
