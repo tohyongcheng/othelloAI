@@ -6,6 +6,10 @@ class SmartPlayer:
       self.color = color
       self.table = {}
 
+      #### profiling
+      self.calls = 0.0
+      self.hits = 0.0
+
   def memoize(self, bitBoard, v, bestMove):
       self.table[bitBoard] = [v, bestMove]
 
@@ -16,13 +20,15 @@ class SmartPlayer:
           self.table = {}
           # we just flush the table
              
-      dirs = ((-1,-1), (-1,0), (-1,1), (0,-1), (0,1), (1,-1), (1,0), (1,1))
       color = self.color
       if   color == 'W': oppColor = 'B'
       elif color == 'B': oppColor = 'W'
       else: assert False, 'ERROR: Current player is not W or B!'
 
-      return self.alphabeta(board, 6, -constants.INFINITY, constants.INFINITY, True)[1]
+      result = self.alphabeta(board, 6, -constants.INFINITY, constants.INFINITY, True)
+      print "Move found, score:", result[0]
+      print "Hit Percentage:", self.hits / self.calls * 100
+      return result[1]
 
 
   def gameEnd(self,board):
@@ -131,8 +137,10 @@ class SmartPlayer:
     
   def alphabeta(self,board, depth, alpha, beta, maximizingPlayer):
     # check if we've seen this board before
+    self.calls += 1
     bitBoard = self.toBitBoard(board)
     if bitBoard in self.table:
+      self.hits += 1
       return self.table[bitBoard]
 
     if maximizingPlayer:
