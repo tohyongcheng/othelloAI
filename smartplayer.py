@@ -22,7 +22,7 @@ class SmartPlayer:
       elif color == 'B': oppColor = 'W'
       else: assert False, 'ERROR: Current player is not W or B!'
 
-      return self.alphabeta(board, 8, -constants.INFINITY, constants.INFINITY, True)[1]
+      return self.alphabeta(board, 6, -constants.INFINITY, constants.INFINITY, True)[1]
 
 
   def gameEnd(self,board):
