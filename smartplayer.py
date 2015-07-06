@@ -6,8 +6,8 @@ class SmartPlayer:
       self.color = color
       self.table = {}
 
-  def memoize(self, board, v, bestMove):
-      self.table[str(board)] = [v, bestMove]
+  def memoize(self, bitBoard, v, bestMove):
+      self.table[bitBoard] = [v, bestMove]
 
   def chooseMove(self,board,prevMove):
       memUsedMB = memory.getMemoryUsedMB()
@@ -34,6 +34,20 @@ class SmartPlayer:
   def getMemoryUsedMB(self):
       return 0.0
 
+  def toBitBoard(self,board):
+      #helper function that turns a board to a bitboard
+      whiteBoard = 0
+      blackBoard = 0
+      for i in xrange(constants.BRD_SIZE):
+          for j in xrange(constants.BRD_SIZE):
+              whiteBoard = whiteBoard << 1
+              blackBoard = blackBoard << 1
+              if board[i][j] == 'W': 
+                 whiteBoard += 1 
+              if board[i][j] == 'B': 
+                 blackBoard += 1 
+
+      return (whiteBoard,blackBoard)
 
   def evaluate(self,board):
       score = 0.0
@@ -117,9 +131,9 @@ class SmartPlayer:
     
   def alphabeta(self,board, depth, alpha, beta, maximizingPlayer):
     # check if we've seen this board before
-    boardString = str(board)
-    if boardString in self.table:
-      return self.table[boardString]
+    bitBoard = self.toBitBoard(board)
+    if bitBoard in self.table:
+      return self.table[bitBoard]
 
     if maximizingPlayer:
       currentColor = self.color
@@ -130,7 +144,7 @@ class SmartPlayer:
 
     if depth == 0 or len(moves) == 0:
         v = self.evaluate(board)
-        self.memoize(board, v , None)
+        self.memoize(bitBoard, v , None)
         return (v, None)
 
     bestMove = None
@@ -161,5 +175,5 @@ class SmartPlayer:
             if beta <= alpha:
                 break
 
-    self.memoize(board, v, bestMove)
+    self.memoize(bitBoard, v, bestMove)
     return (v, bestMove)
