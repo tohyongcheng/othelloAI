@@ -32,21 +32,21 @@ class SmartPlayer:
 
 
   def evaluate(self,board):
-      score = 0
+      score = 0.0
       oppColor = self.oppositeColor(self.color)
 
       # Coin Parity
       b,w = self.computeScore(board)
       if self.color == "W":
-        score += 100 * (abs(w-b)) / (b+w)
+        score += 100.0 * (w-b) / (b+w)
       else:
-        score += 100 * (abs(b-w)) / (b+w)
+        score += 100.0 * (b-w) / (b+w)
 
       # Mobility
       my_moves = len(self.findAllMovesHelper(board, self.color, oppColor))
       opp_moves = len(self.findAllMovesHelper(board, oppColor, self.color))
       if (my_moves + opp_moves) != 0:
-        score += 100 * (my_moves - opp_moves) / (my_moves + opp_moves)
+        score += 100.0 * (my_moves - opp_moves) / (my_moves + opp_moves)
 
       # Corners Capture
       my_corners = 0
@@ -58,7 +58,7 @@ class SmartPlayer:
         elif board[corner[0]][corner[1]] == oppColor:
           opp_corners += 1
       if (my_corners + opp_corners) != 0:
-        score += 300 * (my_corners - opp_corners) / (my_corners + opp_corners)
+        score += 300.0 * (my_corners - opp_corners) / (my_corners + opp_corners)
 
       # Stability not implemneted yet...
 
