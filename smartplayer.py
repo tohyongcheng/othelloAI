@@ -4,13 +4,17 @@ class SmartPlayer:
 
   def __init__(self,color):
       self.color = color
+      self.table = {}
+
+  def memoize(self, board, v, bestMove):
+      self.table[str(board)] = [v, bestMove]
 
   def chooseMove(self,board,prevMove):
       memUsedMB = memory.getMemoryUsedMB()
       if memUsedMB > constants.MEMORY_LIMIT_MB - 100: #If I am close to memory limit
           #don't allocate memory, limit search depth, etc.
-          #RandomPlayer uses very memory so it does nothing
-          pass
+          self.table = {}
+          # we just flush the table
              
       dirs = ((-1,-1), (-1,0), (-1,1), (0,-1), (0,1), (1,-1), (1,0), (1,1))
       color = self.color
@@ -18,7 +22,7 @@ class SmartPlayer:
       elif color == 'B': oppColor = 'W'
       else: assert False, 'ERROR: Current player is not W or B!'
 
-      return self.alphabeta(board, 6, -constants.INFINITY, constants.INFINITY, True)[1]
+      return self.alphabeta(board, 8, -constants.INFINITY, constants.INFINITY, True)[1]
 
 
   def gameEnd(self,board):
@@ -112,21 +116,26 @@ class SmartPlayer:
 
     
   def alphabeta(self,board, depth, alpha, beta, maximizingPlayer):
+    # check if we've seen this board before
+    boardString = str(board)
+    if boardString in self.table:
+      return self.table[boardString]
+
     if maximizingPlayer:
       currentColor = self.color
     else:
       currentColor = self.oppositeColor(self.color)
 
-    if depth == 0: 
-        return (self.evaluate(board), None)
-    
     moves = self.findAllMovesHelper(board, currentColor, self.oppositeColor(currentColor))
 
-    bestMove = None
+    if depth == 0 or len(moves) == 0:
+        v = self.evaluate(board)
+        self.memoize(board, v , None)
+        return (v, None)
 
+    bestMove = None
     if maximizingPlayer:
         v = -constants.INFINITY
-        if len(moves) == 0: return (self.evaluate(board), None) #no valid moves
         for move in moves:
             board[move[0]][move[1]] = currentColor
             score = self.alphabeta(board, depth -1, alpha, beta, False)
@@ -138,10 +147,8 @@ class SmartPlayer:
             board[move[0]][move[1]] = 'G'
             if beta <= alpha:
                 break
-        return (v, bestMove)
     else:
         v = constants.INFINITY
-        if len(moves) == 0: return (self.evaluate(board), None) #no valid moves
         for move in moves:
             board[move[0]][move[1]] = currentColor
             score = self.alphabeta(board, depth -1, alpha, beta, True)
@@ -153,4 +160,6 @@ class SmartPlayer:
             board[move[0]][move[1]] = 'G'
             if beta <= alpha:
                 break
-        return (v, bestMove)
+
+    self.memoize(board, v, bestMove)
+    return (v, bestMove)
