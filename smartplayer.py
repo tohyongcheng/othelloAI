@@ -5,13 +5,17 @@ class SmartPlayer:
   def __init__(self,color):
       self.color = color
       self.table = {}
+      self.savedMoves = {}
 
       #### profiling
       self.calls = 0.0
       self.hits = 0.0
 
-  def memoize(self, bitBoard, depth, v, bestMove):
-      self.table[(bitBoard, depth)] = [v, bestMove]
+  def memoize(self, bitboard, depth, v, bestMove, moves):
+      if moves:
+        moves = tuple(moves) # just in case it is not already a moves.
+      self.table[(bitboard, depth)] = [v, bestMove]
+      self.savedMoves[bitboard] = moves
 
   def chooseMove(self,board,prevMove):
       memUsedMB = memory.getMemoryUsedMB()
@@ -24,7 +28,7 @@ class SmartPlayer:
       elif color == 'B': oppColor = 'W'
       else: assert False, 'ERROR: Current player is not W or B!'
 
-      result = self.alphabeta(board, 8, -constants.INFINITY, constants.INFINITY, True)
+      result = self.alphabeta(board, 6, -constants.INFINITY, constants.INFINITY, True)
       print "Move found, score:", result[0]
       print "Hit Percentage:", self.hits / self.calls * 100
       return result[1]
@@ -54,7 +58,7 @@ class SmartPlayer:
 
       return (whiteBoard,blackBoard)
 
-  def evaluate(self,board):
+  def evaluate(self,board, bitboard):
       score = 0.0
       oppColor = self.oppositeColor(self.color)
 
@@ -66,8 +70,8 @@ class SmartPlayer:
         score += 100.0 * (b-w) / (b+w)
 
       # Mobility
-      my_moves = len(self.findAllMovesHelper(board, self.color, oppColor))
-      opp_moves = len(self.findAllMovesHelper(board, oppColor, self.color))
+      my_moves = len(self.findAllMovesHelper(board, self.color, oppColor, bitboard))
+      opp_moves = len(self.findAllMovesHelper(board, oppColor, self.color, bitboard))
       if (my_moves + opp_moves) != 0:
         score += 100.0 * (my_moves - opp_moves) / (my_moves + opp_moves)
 
@@ -101,7 +105,9 @@ class SmartPlayer:
               elif color == 'B': b += 1
       return w, b
 
-  def findAllMovesHelper(self, board, color, oppColor, checkHasMoveOnly=False):
+  def findAllMovesHelper(self, board, color, oppColor, bitboard, checkHasMoveOnly=False):
+      if bitboard in self.savedMoves:
+        return self.savedMoves[bitboard]
       moves = []
       for i in xrange(constants.BRD_SIZE):
           for j in xrange(constants.BRD_SIZE):
@@ -137,21 +143,21 @@ class SmartPlayer:
   def alphabeta(self,board, depth, alpha, beta, maximizingPlayer):
     # check if we've seen this board before
     self.calls += 1
-    bitBoard = self.toBitBoard(board)
-    if (bitBoard, depth) in self.table:
+    bitboard = self.toBitBoard(board)
+    if (bitboard, depth) in self.table:
       self.hits += 1
-      return self.table[(bitBoard,depth)]
+      return self.table[(bitboard,depth)]
 
     if maximizingPlayer:
       currentColor = self.color
     else:
       currentColor = self.oppositeColor(self.color)
 
-    moves = self.findAllMovesHelper(board, currentColor, self.oppositeColor(currentColor))
+    moves = self.findAllMovesHelper(board, currentColor, self.oppositeColor(currentColor), bitboard)
 
     if depth == 0 or len(moves) == 0:
-        v = self.evaluate(board)
-        self.memoize(bitBoard, depth, v , None)
+        v = self.evaluate(board, bitboard)
+        self.memoize(bitboard, depth, v , None, [])
         return (v, None)
 
     bestMove = None
@@ -182,5 +188,5 @@ class SmartPlayer:
             if beta <= alpha:
                 break
 
-    self.memoize(bitBoard,depth, v, bestMove)
-    return (v, bestMove)
+    self.memoize(bitboard,depth, v, bestMove, moves)
+    return (v, bestMove, moves)
