@@ -1,4 +1,4 @@
-import random, memory, constants
+import random, memory, constants, code
 
 class SmartPlayer:
 
@@ -11,18 +11,17 @@ class SmartPlayer:
       self.calls = 0.0
       self.hits = 0.0
 
-  def memoize(self, bitboard, depth, v, bestMove, moves):
-      if moves:
-        moves = tuple(moves) # just in case it is not already a moves.
-      self.table[(bitboard, depth)] = [v, bestMove]
-      self.savedMoves[bitboard] = moves
+  def memoize(self, bitboard, depth, v, bestMove):
+      self.table[(bitboard, depth)] = (v, bestMove)
 
   def chooseMove(self,board,prevMove):
       memUsedMB = memory.getMemoryUsedMB()
       if memUsedMB > constants.MEMORY_LIMIT_MB - 100: #If I am close to memory limit
           #don't allocate memory, limit search depth, etc.
-          self.table = {}
           # we just flush the table
+          self.table = {}
+          self.savedMoves = {}
+
       color = self.color
       if   color == 'W': oppColor = 'B'
       elif color == 'B': oppColor = 'W'
@@ -106,8 +105,10 @@ class SmartPlayer:
       return w, b
 
   def findAllMovesHelper(self, board, color, oppColor, bitboard, checkHasMoveOnly=False):
+      #code.interact(local=locals())
       if bitboard in self.savedMoves:
         return self.savedMoves[bitboard]
+
       moves = []
       for i in xrange(constants.BRD_SIZE):
           for j in xrange(constants.BRD_SIZE):
@@ -117,6 +118,7 @@ class SmartPlayer:
                       moves.append((i,j))
                       if checkHasMoveOnly: return moves
                       break
+      self.savedMoves[bitboard] = moves
       return moves
 
   def validMove(self, board, pos, ddir, color, oppColor):
@@ -157,7 +159,7 @@ class SmartPlayer:
 
     if depth == 0 or len(moves) == 0:
         v = self.evaluate(board, bitboard)
-        self.memoize(bitboard, depth, v , None, [])
+        self.memoize(bitboard, depth, v , None)
         return (v, None)
 
     bestMove = None
@@ -188,5 +190,5 @@ class SmartPlayer:
             if beta <= alpha:
                 break
 
-    self.memoize(bitboard,depth, v, bestMove, moves)
+    self.memoize(bitboard,depth, v, bestMove)
     return (v, bestMove, moves)
