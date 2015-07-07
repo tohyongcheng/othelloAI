@@ -10,8 +10,8 @@ class SmartPlayer:
       self.calls = 0.0
       self.hits = 0.0
 
-  def memoize(self, bitBoard, v, bestMove):
-      self.table[bitBoard] = [v, bestMove]
+  def memoize(self, bitBoard, depth, v, bestMove):
+      self.table[(bitBoard, depth)] = [v, bestMove]
 
   def chooseMove(self,board,prevMove):
       memUsedMB = memory.getMemoryUsedMB()
@@ -19,13 +19,12 @@ class SmartPlayer:
           #don't allocate memory, limit search depth, etc.
           self.table = {}
           # we just flush the table
-             
       color = self.color
       if   color == 'W': oppColor = 'B'
       elif color == 'B': oppColor = 'W'
       else: assert False, 'ERROR: Current player is not W or B!'
 
-      result = self.alphabeta(board, 6, -constants.INFINITY, constants.INFINITY, True)
+      result = self.alphabeta(board, 8, -constants.INFINITY, constants.INFINITY, True)
       print "Move found, score:", result[0]
       print "Hit Percentage:", self.hits / self.calls * 100
       return result[1]
@@ -48,10 +47,10 @@ class SmartPlayer:
           for j in xrange(constants.BRD_SIZE):
               whiteBoard = whiteBoard << 1
               blackBoard = blackBoard << 1
-              if board[i][j] == 'W': 
-                 whiteBoard += 1 
-              if board[i][j] == 'B': 
-                 blackBoard += 1 
+              if board[i][j] == 'W':
+                 whiteBoard += 1
+              if board[i][j] == 'B':
+                 blackBoard += 1
 
       return (whiteBoard,blackBoard)
 
@@ -134,14 +133,14 @@ class SmartPlayer:
           return True
       return False
 
-    
+
   def alphabeta(self,board, depth, alpha, beta, maximizingPlayer):
     # check if we've seen this board before
     self.calls += 1
     bitBoard = self.toBitBoard(board)
-    if bitBoard in self.table:
+    if (bitBoard, depth) in self.table:
       self.hits += 1
-      return self.table[bitBoard]
+      return self.table[(bitBoard,depth)]
 
     if maximizingPlayer:
       currentColor = self.color
@@ -152,7 +151,7 @@ class SmartPlayer:
 
     if depth == 0 or len(moves) == 0:
         v = self.evaluate(board)
-        self.memoize(bitBoard, v , None)
+        self.memoize(bitBoard, depth, v , None)
         return (v, None)
 
     bestMove = None
@@ -183,5 +182,5 @@ class SmartPlayer:
             if beta <= alpha:
                 break
 
-    self.memoize(bitBoard, v, bestMove)
+    self.memoize(bitBoard,depth, v, bestMove)
     return (v, bestMove)
