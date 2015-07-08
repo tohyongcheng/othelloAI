@@ -28,7 +28,7 @@ endWeights.append([ -2.58948, -2.16084, 0.49062, -1.07055, -1.07055, 0.49062, -2
 endWeights.append([-0.17812, 0.96804, -2.16084, -2.01723, -2.01723, -2.16084, 0.96804, -0.17812])
 endWeights.append([5.50062, -0.17812, -2.58948, -0.59007, -0.59007, -2.58948, -0.17812, 5.50062])
 
-class SmartPlayer:
+class YcSmarterPlayer:
 
   def __init__(self,color):
       self.color = color
@@ -87,23 +87,22 @@ class SmartPlayer:
       score = 0.0
       oppColor = self.oppositeColor(self.color)
 
-      # # Feature Weights on squares dependent on game stage
-      # d = 0
-      # currentStageWeights = openingWeights
-      # if self.no_of_corners_occupied(board) >= 2:
-      #   currentStageWeights = endWeights
-      # elif self.disc_present_on_edges(board):
-      #   currentStageWeights = middleWeights
+      # Feature Weights on squares dependent on game stage
+      d = 0
+      currentStageWeights = openingWeights
+      if self.no_of_corners_occupied(board) >= 2:
+        currentStageWeights = endWeights
+      elif self.disc_present_on_edges(board):
+        currentStageWeights = middleWeights
 
-      # for i in xrange(8):
-      #   for j in xrange(8):
-      #     if board[i][j] == self.color:
-      #       d += currentStageWeights[i][j]
-      #     elif board[i][j] == oppColor:
-      #       d -= currentStageWeights[i][j]
-
-      # score += 100.0 * d
-
+      for i in xrange(8):
+        for j in xrange(8):
+          if board[i][j] == self.color:
+            d += currentStageWeights[i][j]
+          elif board[i][j] == oppColor:
+            d -= currentStageWeights[i][j]
+      print("D:", d)
+      score += 100.0 * d
 
       # Coin Parity
       b,w = self.computeScore(board)
@@ -167,6 +166,7 @@ class SmartPlayer:
       if (my_tiles + opp_tiles) > 0:
         score += (-200) * (my_tiles - opp_tiles) / (my_tiles + opp_tiles)
 
+      print("Score:", score)
       return score
 
 
@@ -186,7 +186,6 @@ class SmartPlayer:
     for i in xrange(8):
       if (board[i][0] != "G" or board[i][7] != "G" or board[0][i] != "G" or board[7][i] != "G" ): return True
     return False
-
 
   def oppositeColor(self, color):
       if color == 'W': return 'B'
