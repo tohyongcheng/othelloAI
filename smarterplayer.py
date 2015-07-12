@@ -1,34 +1,6 @@
 import random, memory, constants, code
 
-openingWeights = []
-openingWeights.append([0, 0, 0, 0, 0, 0, 0, 0])
-openingWeights.append([0, -0.02231, 0.05583, 0.02004, 0.02004, 0.05583, -0.02231, 0])
-openingWeights.append([0, 0.05583, 0.10126, -0.10927, -0.10927, 0.10126, 0.05583, 0])
-openingWeights.append([0, 0.02004, -0.10927, -0.10155, -0.10155, -0.10927, 0.02004, 0])
-openingWeights.append([0, 0.02004, -0.10927, -0.10155, -0.10155, -0.10927, 0.02004, 0])
-openingWeights.append([0, 0.05583, 0.10126, -0.10927, -0.10927, 0.10126, 0.05583, 0])
-openingWeights.append([0, -0.02231, 0.05583, 0.02004, 0.02004, 0.05583, -0.02231, 0])
-openingWeights.append([0, 0, 0, 0, 0, 0, 0, 0])
-middleWeights = []
-middleWeights.append([ 6.32711, -3.32813, 0.33907, -2.00512, -2.00512, 0.33907, -3.32813, 6.32711])
-middleWeights.append([-3.32813, -1.52928, -1.87550, -0.18176, -0.18176, -1.87550, -1.52928, -3.32813])
-middleWeights.append([ 0.33907, -1.87550, 1.06939, 0.62415, 0.62415, 1.06939, -1.87550, 0.33907])
-middleWeights.append([-2.00512, -0.18176, 0.62415, 0.10539, 0.10539, 0.62415, -0.18176, -2.00512])
-middleWeights.append([-2.00512, -0.18176, 0.62415, 0.10539, 0.10539, 0.62415, -0.18176, -2.00512])
-middleWeights.append([ 0.33907, -1.87550, 1.06939, 0.62415, 0.62415, 1.06939, -1.87550, 0.33907])
-middleWeights.append([-3.32813, -1.52928, -1.87550, -0.18176, -0.18176, -1.87550, -1.52928, -3.32813])
-middleWeights.append([ 6.32711, -3.32813, 0.33907, -2.00512, -2.00512, 0.33907, -3.32813, 6.32711])
-endWeights = []
-endWeights.append([5.50062, -0.17812, -2.58948, -0.59007, -0.59007, -2.58948, -0.17812, 5.50062])
-endWeights.append([-0.17812, 0.96804, -2.16084, -2.01723, -2.01723, -2.16084, 0.96804, -0.17812])
-endWeights.append([ -2.58948, -2.16084, 0.49062, -1.07055, -1.07055, 0.49062, -2.16084, -2.58948])
-endWeights.append([ -0.59007, -2.01723, -1.07055, 0.73486, 0.73486, -1.07055, -2.01723, -0.59007])
-endWeights.append([ -0.59007, -2.01723, -1.07055, 0.73486, 0.73486, -1.07055, -2.01723, -0.59007])
-endWeights.append([ -2.58948, -2.16084, 0.49062, -1.07055, -1.07055, 0.49062, -2.16084, -2.58948])
-endWeights.append([-0.17812, 0.96804, -2.16084, -2.01723, -2.01723, -2.16084, 0.96804, -0.17812])
-endWeights.append([5.50062, -0.17812, -2.58948, -0.59007, -0.59007, -2.58948, -0.17812, 5.50062])
-
-class SmartPlayer:
+class SmarterPlayer:
 
   def __init__(self,color):
       self.color = color
@@ -55,7 +27,7 @@ class SmartPlayer:
       elif color == 'B': oppColor = 'W'
       else: assert False, 'ERROR: Current player is not W or B!'
 
-      result = self.alphabeta(board, 6, -constants.INFINITY, constants.INFINITY, True)
+      result = self.alphabeta(board, 7, -constants.INFINITY, constants.INFINITY, True)
       print "Move found, score:", result[0]
       print "Hit Percentage:", self.hits / self.calls * 100
       return result[1]
@@ -89,24 +61,6 @@ class SmartPlayer:
       score = 0.0
       oppColor = self.oppositeColor(self.color)
 
-      # # Feature Weights on squares dependent on game stage
-      # d = 0
-      # currentStageWeights = openingWeights
-      # if self.no_of_corners_occupied(board) >= 2:
-      #   currentStageWeights = endWeights
-      # elif self.disc_present_on_edges(board):
-      #   currentStageWeights = middleWeights
-
-      # for i in xrange(8):
-      #   for j in xrange(8):
-      #     if board[i][j] == self.color:
-      #       d += currentStageWeights[i][j]
-      #     elif board[i][j] == oppColor:
-      #       d -= currentStageWeights[i][j]
-
-      # score += 100.0 * d
-
-
       # Coin Parity
       b,w = self.computeScore(board)
       if self.color == "W":
@@ -132,63 +86,9 @@ class SmartPlayer:
       if (my_corners + opp_corners) != 0:
         score += 300.0 * (my_corners - opp_corners) / (my_corners + opp_corners)
 
-
-      # Corner Closeness
-      my_tiles = opp_tiles = 0
-      if board[0][0] != "G":
-          if board[0][1] == self.color: my_tiles += 1
-          elif board[0][1] == oppColor: opp_tiles += 1
-          if board[1][1] == self.color: my_tiles += 1
-          elif board[1][1] == oppColor: opp_tiles += 1
-          if board[1][0] == self.color: my_tiles += 1
-          elif board[1][0] == oppColor: opp_tiles += 1
-
-      if board[0][7] != "G":
-          if board[0][6] == self.color: my_tiles += 1
-          elif board[0][6] == oppColor: opp_tiles += 1
-          if board[1][6] == self.color: my_tiles += 1
-          elif board[1][6] == oppColor: opp_tiles += 1
-          if board[1][7] == self.color: my_tiles += 1
-          elif board[1][7] == oppColor: opp_tiles += 1
-
-      if board[7][0] != "G":
-          if board[6][0] == self.color: my_tiles += 1
-          elif board[6][0] == oppColor: opp_tiles += 1
-          if board[7][1] == self.color: my_tiles += 1
-          elif board[7][1] == oppColor: opp_tiles += 1
-          if board[6][1] == self.color: my_tiles += 1
-          elif board[6][1] == oppColor: opp_tiles += 1
-
-      if board[7][7] != "G":
-          if board[6][7] == self.color: my_tiles += 1
-          elif board[6][7] == oppColor: opp_tiles += 1
-          if board[6][6] == self.color: my_tiles += 1
-          elif board[6][6] == oppColor: opp_tiles += 1
-          if board[7][6] == self.color: my_tiles += 1
-          elif board[7][6] == oppColor: opp_tiles += 1
-      if (my_tiles + opp_tiles) > 0:
-        score += (-200) * (my_tiles - opp_tiles) / (my_tiles + opp_tiles)
+      # Stability not implemneted yet...
 
       return score
-
-
-  def no_of_corners_occupied(self, board):
-      corners = [[0,0],[0,7],[7,7],[7,0]]
-      b = 0
-      w = 0
-      for corner in corners:
-        if board[corner[0]][corner[1]] == "B":
-          b += 1
-        elif board[corner[0]][corner[1]] == "W":
-          w += 1
-
-      return max(b,w)
-
-  def disc_present_on_edges(self,board):
-    for i in xrange(8):
-      if (board[i][0] != "G" or board[i][7] != "G" or board[0][i] != "G" or board[7][i] != "G" ): return True
-    return False
-
 
   def oppositeColor(self, color):
       if color == 'W': return 'B'
