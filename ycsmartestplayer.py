@@ -28,7 +28,17 @@ endWeights.append([ -2.58948, -2.16084, 0.49062, -1.07055, -1.07055, 0.49062, -2
 endWeights.append([-0.17812, 0.96804, -2.16084, -2.01723, -2.01723, -2.16084, 0.96804, -0.17812])
 endWeights.append([5.50062, -0.17812, -2.58948, -0.59007, -0.59007, -2.58948, -0.17812, 5.50062])
 
-class YcSmarterPlayer:
+tryWeights = []
+tryWeights.append([20, -3, 11, 8, 8, 11, -3, 20])
+tryWeights.append([-3, -7, -4, 1, 1, -4, -7, -3])
+tryWeights.append([11, -4, 2, 2, 2, 2, -4, 11])
+tryWeights.append([8, 1, 2, -3, -3, 2, 1, 8])
+tryWeights.append([8, 1, 2, -3, -3, 2, 1, 8])
+tryWeights.append([11, -4, 2, 2, 2, 2, -4, 11])
+tryWeights.append([-3, -7, -4, 1, 1, -4, -7, -3])
+tryWeights.append([20, -3, 11, 8, 8, 11, -3, 20])
+
+class YcSmartestPlayer:
 
   def __init__(self,color):
       self.color = color
@@ -88,6 +98,8 @@ class YcSmarterPlayer:
       oppColor = self.oppositeColor(self.color)
 
       # Feature Weights on squares dependent on game stage
+      my_frontier_tiles = opp_frontier_tiles = 0
+
       d = 0
       currentStageWeights = openingWeights
       if self.no_of_corners_occupied(board) >= 2:
@@ -98,11 +110,27 @@ class YcSmarterPlayer:
       for i in xrange(8):
         for j in xrange(8):
           if board[i][j] == self.color:
-            d += currentStageWeights[i][j]
+            d += tryWeights[i][j]
           elif board[i][j] == oppColor:
-            d -= currentStageWeights[i][j]
+            d -= tryWeights[i][j]
+
+          if board[i][j] != "G":
+            for ddir in constants.DIRECTIONS:
+              if self.validMove(board, (i,j), ddir, self.color, oppColor) and board[i+ddir[0]][j+ddir[1]] == "G":
+                if board[i][j] == self.color:
+                  my_frontier_tiles += 1
+                else:
+                  opp_frontier_tiles += 1
+                break
+
+
       # print("D:", d)
-      score += 300.0 * d
+      score += 100.0 * d
+
+      if my_frontier_tiles > opp_frontier_tiles:
+        score += -(100.0 * my_frontier_tiles) / (my_frontier_tiles + opp_frontier_tiles)
+      elif my_frontier_tiles < opp_frontier_tiles:
+        score += (100.0 * opp_frontier_tiles) / (my_frontier_tiles + opp_frontier_tiles)
 
       # Coin Parity
       b,w = self.computeScore(board)
@@ -115,7 +143,7 @@ class YcSmarterPlayer:
       my_moves = len(self.findAllMovesHelper(board, self.color, oppColor))
       opp_moves = len(self.findAllMovesHelper(board, oppColor, self.color))
       if (my_moves + opp_moves) != 0:
-        score += 300.0 * (my_moves - opp_moves) / (my_moves + opp_moves)
+        score += 100.0 * (my_moves - opp_moves) / (my_moves + opp_moves)
 
       # Corners Capture
       my_corners = 0
@@ -127,44 +155,45 @@ class YcSmarterPlayer:
         elif board[corner[0]][corner[1]] == oppColor:
           opp_corners += 1
       if (my_corners + opp_corners) > 0:
-        score += 300.0 * (my_corners - opp_corners) / (my_corners + opp_corners)
+        score += 100.0 * (my_corners - opp_corners) / (my_corners + opp_corners)
 
 
       # Corner Closeness
-      # my_tiles = opp_tiles = 0
-      # if board[0][0] != "G":
-      #     if board[0][1] == self.color: my_tiles += 1
-      #     elif board[0][1] == oppColor: opp_tiles += 1
-      #     if board[1][1] == self.color: my_tiles += 1
-      #     elif board[1][1] == oppColor: opp_tiles += 1
-      #     if board[1][0] == self.color: my_tiles += 1
-      #     elif board[1][0] == oppColor: opp_tiles += 1
+      my_tiles = opp_tiles = 0
+      if board[0][0] != "G":
+          if board[0][1] == self.color: my_tiles += 1
+          elif board[0][1] == oppColor: opp_tiles += 1
+          if board[1][1] == self.color: my_tiles += 1
+          elif board[1][1] == oppColor: opp_tiles += 1
+          if board[1][0] == self.color: my_tiles += 1
+          elif board[1][0] == oppColor: opp_tiles += 1
 
-      # if board[0][7] != "G":
-      #     if board[0][6] == self.color: my_tiles += 1
-      #     elif board[0][6] == oppColor: opp_tiles += 1
-      #     if board[1][6] == self.color: my_tiles += 1
-      #     elif board[1][6] == oppColor: opp_tiles += 1
-      #     if board[1][7] == self.color: my_tiles += 1
-      #     elif board[1][7] == oppColor: opp_tiles += 1
+      if board[0][7] != "G":
+          if board[0][6] == self.color: my_tiles += 1
+          elif board[0][6] == oppColor: opp_tiles += 1
+          if board[1][6] == self.color: my_tiles += 1
+          elif board[1][6] == oppColor: opp_tiles += 1
+          if board[1][7] == self.color: my_tiles += 1
+          elif board[1][7] == oppColor: opp_tiles += 1
 
-      # if board[7][0] != "G":
-      #     if board[6][0] == self.color: my_tiles += 1
-      #     elif board[6][0] == oppColor: opp_tiles += 1
-      #     if board[7][1] == self.color: my_tiles += 1
-      #     elif board[7][1] == oppColor: opp_tiles += 1
-      #     if board[6][1] == self.color: my_tiles += 1
-      #     elif board[6][1] == oppColor: opp_tiles += 1
+      if board[7][0] != "G":
+          if board[6][0] == self.color: my_tiles += 1
+          elif board[6][0] == oppColor: opp_tiles += 1
+          if board[7][1] == self.color: my_tiles += 1
+          elif board[7][1] == oppColor: opp_tiles += 1
+          if board[6][1] == self.color: my_tiles += 1
+          elif board[6][1] == oppColor: opp_tiles += 1
 
-      # if board[7][7] != "G":
-      #     if board[6][7] == self.color: my_tiles += 1
-      #     elif board[6][7] == oppColor: opp_tiles += 1
-      #     if board[6][6] == self.color: my_tiles += 1
-      #     elif board[6][6] == oppColor: opp_tiles += 1
-      #     if board[7][6] == self.color: my_tiles += 1
-      #     elif board[7][6] == oppColor: opp_tiles += 1
-      # if (my_tiles + opp_tiles) > 0:
-      #   score += (-200) * (my_tiles - opp_tiles) / (my_tiles + opp_tiles)
+      if board[7][7] != "G":
+          if board[6][7] == self.color: my_tiles += 1
+          elif board[6][7] == oppColor: opp_tiles += 1
+          if board[6][6] == self.color: my_tiles += 1
+          elif board[6][6] == oppColor: opp_tiles += 1
+          if board[7][6] == self.color: my_tiles += 1
+          elif board[7][6] == oppColor: opp_tiles += 1
+
+      if (my_tiles + opp_tiles) > 0:
+        score += (-12.5) * (my_tiles - opp_tiles) / (my_tiles + opp_tiles)
 
       # print("Score:", score)
       return score
