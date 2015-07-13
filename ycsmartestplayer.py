@@ -1,5 +1,6 @@
 import random, memory, constants
 import sched, time
+from threading import Thread
 
 openingWeights = []
 openingWeights.append([0, 0, 0, 0, 0, 0, 0, 0])
@@ -47,16 +48,19 @@ class YcSmartestPlayer:
       self.savedMoves = {}
 
       ### Memory Management
-      self.schedule = sched.scheduler(time.time, time.sleep)
+      self.manager = None
+      self.scheduler = sched.scheduler(time.time, time.sleep)
       self.event = None
-
       #### profiling
       self.calls = 0.0
       self.hits = 0.0
 
   def manageMemory(self,board):
-    self.event = self.schedule.enter(60, 1, self.manageMemory, (board,))
+    self.event = self.schedule.enter(1, 1, self.manageMemory, (board,))
+    print
+    print "Manager:"
     memUsedMB = memory.getMemoryUsedMB()
+    print "Mb Used:", memory.getMemoryUsedMB
     if memUsedMB > constants.MEMORY_LIMIT_MB - 10: #If I am close to memory limit
         #don't allocate memory, limit search depth, etc.
         # we just flush the table
@@ -68,21 +72,39 @@ class YcSmartestPlayer:
       self.table[(bitboard, depth)] = (v, bestMove)
 
   def chooseMove(self,board,prevMove):
-      # start memory manager
-      self.event = self.schedule.enter(60, 1, self.manageMemory, (board,))
-      self.schedule.run()
+      # start memory management
+      print 'Running Memory Manager in its own thread...'
+      self.event = self.scheduler.enter(1, 1, self.manageMemory, (board,))
+      self.manager = Thread(target= self.scheduler.run)
+      self.manager.start()
 
+      print 'Manager Started... Running AlphaBeta'
       color = self.color
       if   color == 'W': oppColor = 'B'
       elif color == 'B': oppColor = 'W'
       else: assert False, 'ERROR: Current player is not W or B!'
 
       result = self.alphabeta(board, 6, -constants.INFINITY, constants.INFINITY, True)
-      print "Mb Used:", memory.getMemoryUsedMB()
+      print
       print "Move found, score:", result[0]
       print "Hit Percentage:", self.hits / self.calls * 100
+      print
+
+      # stop memory management
+      print 'Unscheduling Check Events...'
       while not (self.scheduler.empty()):
-        scheduler.cancel(self.event)
+        print 'left in queue:', self.scheduler.queue
+        self.scheduler.cancel(self.scheduler.queue[0])
+      assert self.scheduler.empty()
+
+      print 'Done...'
+      print 'Waiting for manager to exit...'
+      self.manager.join()
+      print 'Management Stopped...'
+      print 'Returning Result...'
+      print
+
+      # return result.
       return result[1]
 
 
