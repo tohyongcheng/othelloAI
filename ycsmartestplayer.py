@@ -108,12 +108,12 @@ class YcSmartestPlayer:
       self.table = {}
       self.savedMoves = {}
       # start memory management
-      print 'Running Memory Manager in its own thread...'
+      # print 'Running Memory Manager in its own thread...'
       self.event = self.scheduler.enter(3, 1, self.manageMemory, (board,))
       self.manager = Thread(target= self.scheduler.run)
       self.manager.start()
 
-      print 'Manager Started... Running AlphaBeta'
+      # print 'Manager Started... Running AlphaBeta'
       color = self.color
       if   color == 'W': oppColor = 'B'
       elif color == 'B': oppColor = 'W'
@@ -127,16 +127,16 @@ class YcSmartestPlayer:
       print
 
       # stop memory management
-      print 'Unscheduling Check Events...'
+      # print 'Unscheduling Check Events...'
       while not (self.scheduler.empty()):
         self.scheduler.cancel(self.scheduler.queue[0])
       assert self.scheduler.empty()
 
-      print 'Done...'
-      print 'Waiting for manager to exit...'
+      # print 'Done...'
+      # print 'Waiting for manager to exit...'
       self.manager.join()
-      print 'Management Stopped...'
-      print 'Returning Result...'
+      # print 'Management Stopped...'
+      # print 'Returning Result...'
       print
 
       # return result.

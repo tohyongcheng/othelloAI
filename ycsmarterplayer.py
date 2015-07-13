@@ -1,4 +1,6 @@
 import random, memory, constants
+import sched, time
+from threading import Thread
 
 openingWeights = []
 openingWeights.append([0, 0, 0, 0, 0, 0, 0, 0])
@@ -35,33 +37,85 @@ class YcSmarterPlayer:
       self.table = {}
       self.savedMoves = {}
 
+      ### Memory Management
+      self.manager = None
+      self.scheduler = sched.scheduler(time.time, time.sleep)
+      self.event = None
       #### profiling
       self.calls = 0.0
       self.hits = 0.0
 
+  def manageMemory(self,board):
+    self.event = self.scheduler.enter(3, 1, self.manageMemory, (board,))
+    memUsedMB = memory.getMemoryUsedMB()
+    if memUsedMB > constants.MEMORY_LIMIT_MB - 10: #If I am close to memory limit
+        print
+        print "Manager: Memory exceeded!"
+        print "Memory used:", memUsedMB
+        print 'Mangater: Reducing Memory...'
+        self.removeKeys(board)
+        memUsedMB = memory.getMemoryUsedMB()
+        print "New Memory used:", memUsedMB
+
+        if memUsedMB > constants.MEMORY_LIMIT_MB - 10: #If I am close to memory limit
+          print "Not Good Enough...FLUSHING EM ALL!", memUsedMB
+          self.table = {}
+          self.savedMoves = {}
+          print
+
+  def removeKeys(self,board):
+      bitboard = self.toBitBoard(board)
+      currentPieces = self.countpieces(bitboard)
+
+      keys = self.table.keys()
+      bbs = [k[0] for k in keys]
+      toDelete = map(lambda x: self.countpieces(x) <= currentPieces, bbs)
+      print "Deleting:", reduce(lambda a,x: x + 1 if a else a , toDelete)
+      for i,key in enumerate(keys):
+        if toDelete[i]: self.table.pop(key)
+      self.table = self.table.copy()
+
+      keys = self.savedMoves.keys()
+      bbs = [k[0] for k in keys]
+      toDelete = map(lambda x: self.countpieces(x) <= currentPieces, bbs)
+      print "Deleting:", reduce(lambda a,x: x + 1 if a else a , toDelete)
+      for i,key in enumerate(keys):
+        if toDelete[i]: self.savedMoves.pop(key)
+      self.savedMoves = self.savedMoves.copy()
+
+  def countpieces(self, bitboard):
+      bitboard = bitboard[0] ^ bitboard[1]
+      count = 0
+      while bitboard != 0:
+        count += bitboard & 1
+        bitboard >>= 1
+      return count
+
   def memoize(self, bitboard, depth, v, bestMove):
       self.table[(bitboard, depth)] = (v, bestMove)
 
-  def chooseMove(self,board,prevMove):
-      memUsedMB = memory.getMemoryUsedMB()
-      if memUsedMB > constants.MEMORY_LIMIT_MB - 10: #If I am close to memory limit
-          #don't allocate memory, limit search depth, etc.
-          # we just flush the table
-          print 'flushing'
-          self.table = {}
-          self.savedMoves = {}
 
+  def chooseMove(self,board,prevMove):
+      self.table = {}
+      self.savedMoves = {}
+      # start memory management
+      # print 'Running Memory Manager in its own thread...'
+      self.event = self.scheduler.enter(3, 1, self.manageMemory, (board,))
+      self.manager = Thread(target= self.scheduler.run)
+      self.manager.start()
+
+      # print 'Manager Started... Running AlphaBeta'
       color = self.color
       if   color == 'W': oppColor = 'B'
       elif color == 'B': oppColor = 'W'
       else: assert False, 'ERROR: Current player is not W or B!'
 
       result = self.alphabeta(board, 6, -constants.INFINITY, constants.INFINITY, True)
-      print "Mb Used:", memory.getMemoryUsedMB()
+      print
       print "Move found, score:", result[0]
       print "Hit Percentage:", self.hits / self.calls * 100
-      return result[1]
-
+      print "Mb Used:", memory.getMemoryUsedMB()
+      print
 
   def gameEnd(self,board):
       return
