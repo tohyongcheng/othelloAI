@@ -56,7 +56,7 @@ class YcSmartestPlayer:
       self.hits = 0.0
 
   def manageMemory(self,board):
-    self.event = self.schedule.enter(1, 1, self.manageMemory, (board,))
+    self.event = self.scheduler.enter(1, 1, self.manageMemory, (board,))
     print
     print "Manager:"
     memUsedMB = memory.getMemoryUsedMB()
