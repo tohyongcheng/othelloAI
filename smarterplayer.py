@@ -16,7 +16,7 @@ class SmarterPlayer:
 
   def chooseMove(self,board,prevMove):
       memUsedMB = memory.getMemoryUsedMB()
-      if memUsedMB > constants.MEMORY_LIMIT_MB - 100: #If I am close to memory limit
+      if memUsedMB > constants.MEMORY_LIMIT_MB - 10000: #If I am close to memory limit
           #don't allocate memory, limit search depth, etc.
           # we just flush the table
           self.table = {}
@@ -28,6 +28,7 @@ class SmarterPlayer:
       else: assert False, 'ERROR: Current player is not W or B!'
 
       result = self.alphabeta(board, 7, -constants.INFINITY, constants.INFINITY, True)
+      print "Mb Used:", getMemoryUsedMB()
       print "Move found, score:", result[0]
       print "Hit Percentage:", self.hits / self.calls * 100
       return result[1]

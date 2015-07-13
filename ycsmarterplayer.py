@@ -33,29 +33,33 @@ class YcSmarterPlayer:
   def __init__(self,color):
       self.color = color
       self.table = {}
+      self.savedMoves = {}
 
       #### profiling
       self.calls = 0.0
       self.hits = 0.0
 
-  def memoize(self, bitBoard, v, bestMove):
-      self.table[bitBoard] = [v, bestMove]
+  def memoize(self, bitboard, depth, v, bestMove):
+      self.table[(bitboard, depth)] = (v, bestMove)
 
   def chooseMove(self,board,prevMove):
       memUsedMB = memory.getMemoryUsedMB()
-      if memUsedMB > constants.MEMORY_LIMIT_MB - 100: #If I am close to memory limit
+      if memUsedMB > constants.MEMORY_LIMIT_MB - 10: #If I am close to memory limit
           #don't allocate memory, limit search depth, etc.
-          self.table = {}
           # we just flush the table
-             
+          print 'flushing'
+          self.table = {}
+          self.savedMoves = {}
+
       color = self.color
       if   color == 'W': oppColor = 'B'
       elif color == 'B': oppColor = 'W'
       else: assert False, 'ERROR: Current player is not W or B!'
 
       result = self.alphabeta(board, 6, -constants.INFINITY, constants.INFINITY, True)
-      # print "Move found, score:", result[0]
-      # print "Hit Percentage:", self.hits / self.calls * 100
+      print "Mb Used:", memory.getMemoryUsedMB()
+      print "Move found, score:", result[0]
+      print "Hit Percentage:", self.hits / self.calls * 100
       return result[1]
 
 
@@ -83,7 +87,7 @@ class YcSmarterPlayer:
 
       return (whiteBoard,blackBoard)
 
-  def evaluate(self,board):
+  def evaluate(self,board, bitboard):
       score = 0.0
       oppColor = self.oppositeColor(self.color)
 
@@ -112,8 +116,8 @@ class YcSmarterPlayer:
         score += 100.0 * (b-w) / (b+w)
 
       # Mobility
-      my_moves = len(self.findAllMovesHelper(board, self.color, oppColor))
-      opp_moves = len(self.findAllMovesHelper(board, oppColor, self.color))
+      my_moves = len(self.findAllMovesHelper(board, self.color, oppColor, bitboard))
+      opp_moves = len(self.findAllMovesHelper(board, oppColor, self.color, bitboard))
       if (my_moves + opp_moves) != 0:
         score += 300.0 * (my_moves - opp_moves) / (my_moves + opp_moves)
 
@@ -131,42 +135,46 @@ class YcSmarterPlayer:
 
 
       # Corner Closeness
-      # my_tiles = opp_tiles = 0
-      # if board[0][0] != "G":
-      #     if board[0][1] == self.color: my_tiles += 1
-      #     elif board[0][1] == oppColor: opp_tiles += 1
-      #     if board[1][1] == self.color: my_tiles += 1
-      #     elif board[1][1] == oppColor: opp_tiles += 1
-      #     if board[1][0] == self.color: my_tiles += 1
-      #     elif board[1][0] == oppColor: opp_tiles += 1
+      my_tiles = opp_tiles = 0
+      if board[0][0] == "G":
+          if board[0][1] == self.color: my_tiles += 1
+          elif board[0][1] == oppColor: opp_tiles += 1
+          if board[1][1] == self.color: my_tiles += 1
+          elif board[1][1] == oppColor: opp_tiles += 1
+          if board[1][0] == self.color: my_tiles += 1
+          elif board[1][0] == oppColor: opp_tiles += 1
 
-      # if board[0][7] != "G":
-      #     if board[0][6] == self.color: my_tiles += 1
-      #     elif board[0][6] == oppColor: opp_tiles += 1
-      #     if board[1][6] == self.color: my_tiles += 1
-      #     elif board[1][6] == oppColor: opp_tiles += 1
-      #     if board[1][7] == self.color: my_tiles += 1
-      #     elif board[1][7] == oppColor: opp_tiles += 1
+      if board[0][7] == "G":
+          if board[0][6] == self.color: my_tiles += 1
+          elif board[0][6] == oppColor: opp_tiles += 1
+          if board[1][6] == self.color: my_tiles += 1
+          elif board[1][6] == oppColor: opp_tiles += 1
+          if board[1][7] == self.color: my_tiles += 1
+          elif board[1][7] == oppColor: opp_tiles += 1
 
-      # if board[7][0] != "G":
-      #     if board[6][0] == self.color: my_tiles += 1
-      #     elif board[6][0] == oppColor: opp_tiles += 1
-      #     if board[7][1] == self.color: my_tiles += 1
-      #     elif board[7][1] == oppColor: opp_tiles += 1
-      #     if board[6][1] == self.color: my_tiles += 1
-      #     elif board[6][1] == oppColor: opp_tiles += 1
+      if board[7][0] == "G":
+          if board[6][0] == self.color: my_tiles += 1
+          elif board[6][0] == oppColor: opp_tiles += 1
+          if board[7][1] == self.color: my_tiles += 1
+          elif board[7][1] == oppColor: opp_tiles += 1
+          if board[6][1] == self.color: my_tiles += 1
+          elif board[6][1] == oppColor: opp_tiles += 1
 
-      # if board[7][7] != "G":
-      #     if board[6][7] == self.color: my_tiles += 1
-      #     elif board[6][7] == oppColor: opp_tiles += 1
-      #     if board[6][6] == self.color: my_tiles += 1
-      #     elif board[6][6] == oppColor: opp_tiles += 1
-      #     if board[7][6] == self.color: my_tiles += 1
-      #     elif board[7][6] == oppColor: opp_tiles += 1
-      # if (my_tiles + opp_tiles) > 0:
-      #   score += (-200) * (my_tiles - opp_tiles) / (my_tiles + opp_tiles)
+      if board[7][7] == "G":
+          if board[6][7] == self.color: my_tiles += 1
+          elif board[6][7] == oppColor: opp_tiles += 1
+          if board[6][6] == self.color: my_tiles += 1
+          elif board[6][6] == oppColor: opp_tiles += 1
+          if board[7][6] == self.color: my_tiles += 1
+          elif board[7][6] == oppColor: opp_tiles += 1
+      if (my_tiles + opp_tiles) > 0:
+        score += (-200) * (my_tiles - opp_tiles) / (my_tiles + opp_tiles)
 
       # print("Score:", score)
+
+
+      # Pattern Recognition
+
       return score
 
 
@@ -201,7 +209,11 @@ class YcSmarterPlayer:
               elif color == 'B': b += 1
       return w, b
 
-  def findAllMovesHelper(self, board, color, oppColor, checkHasMoveOnly=False):
+  def findAllMovesHelper(self, board, color, oppColor, bitboard, checkHasMoveOnly=False):
+      #code.interact(local=locals())
+      if (bitboard,color) in self.savedMoves:
+        return self.savedMoves[(bitboard,color)]
+
       moves = []
       for i in xrange(constants.BRD_SIZE):
           for j in xrange(constants.BRD_SIZE):
@@ -211,6 +223,7 @@ class YcSmarterPlayer:
                       moves.append((i,j))
                       if checkHasMoveOnly: return moves
                       break
+      self.savedMoves[(bitboard,color)] = moves
       return moves
 
   def validMove(self, board, pos, ddir, color, oppColor):
@@ -237,21 +250,21 @@ class YcSmarterPlayer:
   def alphabeta(self,board, depth, alpha, beta, maximizingPlayer):
     # check if we've seen this board before
     self.calls += 1
-    bitBoard = self.toBitBoard(board)
-    if bitBoard in self.table:
+    bitboard = self.toBitBoard(board)
+    if (bitboard, depth) in self.table:
       self.hits += 1
-      return self.table[bitBoard]
+      return self.table[(bitboard,depth)]
 
     if maximizingPlayer:
       currentColor = self.color
     else:
       currentColor = self.oppositeColor(self.color)
 
-    moves = self.findAllMovesHelper(board, currentColor, self.oppositeColor(currentColor))
+    moves = self.findAllMovesHelper(board, currentColor, self.oppositeColor(currentColor), bitboard)
 
     if depth == 0 or len(moves) == 0:
-        v = self.evaluate(board)
-        self.memoize(bitBoard, v , None)
+        v = self.evaluate(board, bitboard)
+        self.memoize(bitboard, depth, v , None)
         return (v, None)
 
     bestMove = None
@@ -282,5 +295,5 @@ class YcSmarterPlayer:
             if beta <= alpha:
                 break
 
-    self.memoize(bitBoard, v, bestMove)
-    return (v, bestMove)
+    self.memoize(bitboard,depth, v, bestMove)
+    return (v, bestMove, moves)

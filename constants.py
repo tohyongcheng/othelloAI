@@ -4,8 +4,8 @@ MOVE_SEC      = 0.1  #time to pause after move so that it can viewed
 TCP_PORT_1 = 12342
 TCP_PORT_2 = 12452
 BUF_SIZE   = 10240
-# TCP_IP     = '10.12.1.207'
-TCP_IP     = 'localhost'
+TCP_IP     = '10.12.1.207'
+# TCP_IP     = 'localhost'
 
 TIME_BUF_SEC    =  1*60
 TIME_LIMIT_SEC  = 25*60 + TIME_BUF_SEC  #total time given to each player to make moves
