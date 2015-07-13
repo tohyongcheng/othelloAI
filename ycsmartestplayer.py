@@ -80,6 +80,7 @@ class YcSmartestPlayer:
       keys = self.table.keys()
       bbs = [k[0] for k in keys]
       toDelete = map(lambda x: self.countpieces(x) <= currentPieces, bbs)
+      print "Deleting:", reduce(lambda a,x: x + 1 if a else a , toDelete)
       for i,key in enumerate(keys):
         if toDelete[i]: self.table.pop(key)
       self.table = self.table.copy()
@@ -87,6 +88,7 @@ class YcSmartestPlayer:
       keys = self.savedMoves.keys()
       bbs = [k[0] for k in keys]
       toDelete = map(lambda x: self.countpieces(x) <= currentPieces, bbs)
+      print "Deleting:", reduce(lambda a,x: x + 1 if a else a , toDelete)
       for i,key in enumerate(keys):
         if toDelete[i]: self.savedMoves.pop(key)
       self.savedMoves = self.savedMoves.copy()
@@ -103,6 +105,8 @@ class YcSmartestPlayer:
       self.table[(bitboard, depth)] = (v, bestMove)
 
   def chooseMove(self,board,prevMove):
+      self.table = {}
+      self.savedMoves = {}
       # start memory management
       print 'Running Memory Manager in its own thread...'
       self.event = self.scheduler.enter(3, 1, self.manageMemory, (board,))
@@ -119,6 +123,7 @@ class YcSmartestPlayer:
       print
       print "Move found, score:", result[0]
       print "Hit Percentage:", self.hits / self.calls * 100
+      print "Mb Used:", memory.getMemoryUsedMB()
       print
 
       # stop memory management
@@ -367,8 +372,9 @@ class YcSmartestPlayer:
 
   def findAllMovesHelper(self, board, color, oppColor, bitboard, checkHasMoveOnly=False):
       #code.interact(local=locals())
-      if (bitboard,color) in self.savedMoves:
-        return self.savedMoves[(bitboard,color)]
+      b_color = 0 if color == 'W' else 1
+      if (bitboard,b_color) in self.savedMoves:
+        return self.savedMoves[(bitboard,b_color)]
 
       moves = []
       for i in xrange(constants.BRD_SIZE):
@@ -379,7 +385,7 @@ class YcSmartestPlayer:
                       moves.append((i,j))
                       if checkHasMoveOnly: return moves
                       break
-      self.savedMoves[(bitboard,color)] = moves
+      self.savedMoves[(bitboard,b_color)] = moves
       return moves
 
 
