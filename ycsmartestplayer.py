@@ -1,4 +1,5 @@
 import random, memory, constants
+import sched, time
 
 openingWeights = []
 openingWeights.append([0, 0, 0, 0, 0, 0, 0, 0])
@@ -45,22 +46,29 @@ class YcSmartestPlayer:
       self.table = {}
       self.savedMoves = {}
 
+      ### Memory Management
+      self.schedule = sched.scheduler(time.time, time.sleep)
+      self.event = None
+
       #### profiling
       self.calls = 0.0
       self.hits = 0.0
+
+  def manageMemory(self,board):
+    self.event = self.schedule.enter(60, 1, self.manageMemory, (board,))
+    memUsedMB = memory.getMemoryUsedMB()
+    if memUsedMB > constants.MEMORY_LIMIT_MB - 10: #If I am close to memory limit
+        #don't allocate memory, limit search depth, etc.
+        # we just flush the table
+        print 'flushing'
+        self.table = {}
+        self.savedMoves = {}
 
   def memoize(self, bitboard, depth, v, bestMove):
       self.table[(bitboard, depth)] = (v, bestMove)
 
   def chooseMove(self,board,prevMove):
-      memUsedMB = memory.getMemoryUsedMB()
-      if memUsedMB > constants.MEMORY_LIMIT_MB - 10: #If I am close to memory limit
-          #don't allocate memory, limit search depth, etc.
-          # we just flush the table
-          print 'flushing'
-          self.table = {}
-          self.savedMoves = {}
-
+      self.event = self.schedule.enter(60, 1, self.manageMemory, (board,))
       color = self.color
       if   color == 'W': oppColor = 'B'
       elif color == 'B': oppColor = 'W'
