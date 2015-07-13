@@ -56,7 +56,7 @@ class YcSmartestPlayer:
       self.hits = 0.0
 
   def manageMemory(self,board):
-    self.event = self.scheduler.enter(1, 1, self.manageMemory, (board,))
+    self.event = self.scheduler.enter(3, 1, self.manageMemory, (board,))
     memUsedMB = memory.getMemoryUsedMB()
     if memUsedMB > constants.MEMORY_LIMIT_MB - 10: #If I am close to memory limit
         print
@@ -109,9 +109,9 @@ class YcSmartestPlayer:
       self.savedMoves = {}
       # start memory management
       # print 'Running Memory Manager in its own thread...'
-      self.event = self.scheduler.enter(1, 1, self.manageMemory, (board,))
-      self.manager = Thread(target= self.scheduler.run)
-      self.manager.start()
+      # self.event = self.scheduler.enter(3, 1, self.manageMemory, (board,))
+      # self.manager = Thread(target= self.scheduler.run)
+      # self.manager.start()
 
       # print 'Manager Started... Running AlphaBeta'
       color = self.color
@@ -119,28 +119,24 @@ class YcSmartestPlayer:
       elif color == 'B': oppColor = 'W'
       else: assert False, 'ERROR: Current player is not W or B!'
 
-      if self.no_of_corners_occupied(board) >= 2 and sum(self.computeScore(board)) > 50:
-        result = self.alphabeta(board, 14, -constants.INFINITY, constants.INFINITY, True)
-      else:
-        result = self.alphabeta(board, 4, -constants.INFINITY, constants.INFINITY, True)
+      result = self.alphabeta(board, 4, -constants.INFINITY, constants.INFINITY, True)
+      # print
+      # print "Move found, score:", result[0]
+      # print "Hit Percentage:", self.hits / self.calls * 100
+      # print "Mb Used:", memory.getMemoryUsedMB()
+      # print
 
-      print
-      print "Move found, score:", result[0]
-      print "Hit Percentage:", self.hits / self.calls * 100
-      print "Mb Used:", memory.getMemoryUsedMB()
-      print
+      # # stop memory management
+      # # print 'Unscheduling Check Events...'
+      # while not (self.scheduler.empty()):
+      #   self.scheduler.cancel(self.scheduler.queue[0])
+      # assert self.scheduler.empty()
 
-      # stop memory management
-      # print 'Unscheduling Check Events...'
-      while not (self.scheduler.empty()):
-        self.scheduler.cancel(self.scheduler.queue[0])
-      assert self.scheduler.empty()
-
-      # print 'Done...'
-      # print 'Waiting for manager to exit...'
-      self.manager.join()
-      # print 'Management Stopped...'
-      # print 'Returning Result...'
+      # # print 'Done...'
+      # # print 'Waiting for manager to exit...'
+      # self.manager.join()
+      # # print 'Management Stopped...'
+      # # print 'Returning Result...'
       print
 
       # return result.
@@ -177,19 +173,25 @@ class YcSmartestPlayer:
       oppColor = self.oppositeColor(self.color)
 
       # Coin Parity
-      b_w_score = 0.0
+      b_w_score = 0
       b,w = self.computeScore(board)
       if self.color == "W":
-        b_w_score += (w-b)
+        b_w_score += 50.0 * (w-b) / (b+w)
       else:
-        b_w_score += (b-w)
-      b_w_score *= 1.0
+        b_w_score += 50.0 * (b-w) / (b+w)
       
+      if self.no_of_corners_occupied(board) >= 2:
+      # if (b+w) >= 52:
+        b_w_score *= 100
+
+      score += b_w_score
+
       
       # Feature Weights on squares dependent on game stage
-      my_frontier_tiles = opp_frontier_tiles = 0.0
-      my_d = 0.0
-      opp_d = 0.0
+      my_frontier_tiles = opp_frontier_tiles = 0
+
+      my_d = 0
+      opp_d = 0
       
       currentStageWeights = openingWeights
       if self.no_of_corners_occupied(board) >= 2:
@@ -197,45 +199,43 @@ class YcSmartestPlayer:
         currentStageWeights = endWeights
       elif self.disc_present_on_edges(board):
         currentStageWeights = middleWeights
-      # currentStageWeights = tryWeights
+
       for i in xrange(8):
         for j in xrange(8):
           if board[i][j] == self.color:
             my_d += currentStageWeights[i][j]
           elif board[i][j] == oppColor:
-            opp_d += currentStageWeights[i][j]
+            opp_d -= currentStageWeights[i][j]
 
           if board[i][j] != "G":
             for ddir in constants.DIRECTIONS:
-              if self.validPos((i+ddir[0],j+ddir[1])) and board[i+ddir[0]][j+ddir[1]] == "G":
+              if self.validMove(board, (i,j), ddir, self.color, oppColor) and board[i+ddir[0]][j+ddir[1]] == "G":
                 if board[i][j] == self.color:
                   my_frontier_tiles += 1
                 else:
                   opp_frontier_tiles += 1
+                break
 
       # print("D:", d)
-      d_score = 2.0 * ( my_d - opp_d )
+      # score += 20.0 * ( my_d - opp_d )
 
       # Frontier Score - Potential Mobility
-      frontier_score = 0.0
       if my_frontier_tiles > opp_frontier_tiles:
-        frontier_score += -(5.0 * my_frontier_tiles)
+        score += -(150.0 * my_frontier_tiles) / (my_frontier_tiles + opp_frontier_tiles)
       elif my_frontier_tiles < opp_frontier_tiles:
-        frontier_score += (5.0 * opp_frontier_tiles)
-        
+        score += (150.0 * opp_frontier_tiles) / (my_frontier_tiles + opp_frontier_tiles)
 
       # Mobility
-      mobility_score = 0.0
-      my_moves = len(self.findAllMovesHelper(board, self.color, oppColor, bitboard)) or -9
-      opp_moves = len(self.findAllMovesHelper(board, oppColor, self.color, bitboard)) or -9
+      my_moves = len(self.findAllMovesHelper(board, self.color, oppColor, bitboard))
+      opp_moves = len(self.findAllMovesHelper(board, oppColor, self.color, bitboard))
       if (my_moves + opp_moves) != 0:
-        mobility_score += 20.0 * (my_moves - opp_moves) 
+        score += 200.0 * (my_moves - opp_moves) / (my_moves + opp_moves)
 
       # Corners Capture + Edge Stability
-      my_corners = 0.0
-      opp_corners = 0.0
-      my_stable_edge_sq = 0.0
-      opp_stable_edge_sq = 0.0
+      my_corners = 0
+      opp_corners = 0
+      my_stable_edge_sq = 0
+      opp_stable_edge_sq = 0
       corners = [[0,0],[0,7],[7,7],[7,0]]
 
       # corner [0,0]
@@ -276,31 +276,15 @@ class YcSmartestPlayer:
             else: break
 
 
-      corners_score = 0.0
       if (my_corners + opp_corners) > 0:
-        corners_score += 1000.0 * (my_corners - opp_corners)
-        
+        score += 300.0 * (my_corners - opp_corners) / (my_corners + opp_corners)
 
-      stable_edge_score = 0.0
       if (my_stable_edge_sq + opp_stable_edge_sq) > 0:
-        stable_edge_score += 200.0 * (my_stable_edge_sq - opp_stable_edge_sq)
-        
+        score += 500.0 * (my_stable_edge_sq - opp_stable_edge_sq) / (my_stable_edge_sq + opp_stable_edge_sq)
 
-      edges = [board[0][2:6], board[7][2:6], [col[0] for col in board[2:6]], [col[7] for col in board[2:6]]]
-      white_partial_edges = sum(edge.count('W') == 4 for edge in edges)
-      black_partial_edges = sum(edge.count('B') == 4 for edge in edges)
 
-      partial_edge_score = 0.0
-      if (white_partial_edges + black_partial_edges) > 0:
-        if self.color == "W":
-          partial_edge_score = 1000.0 * (white_partial_edges - black_partial_edges)*1.0
-        else:
-          partial_edge_score = 1000.0 * (black_partial_edges - white_partial_edges)*1.0 
-    
       # Corner Closeness
-      corner_closeness_score = 0.0
       my_tiles = opp_tiles = 0
-      
       if board[0][0] == "G":
           if board[0][1] == self.color: my_tiles += 1
           elif board[0][1] == oppColor: opp_tiles += 1
@@ -333,29 +317,10 @@ class YcSmartestPlayer:
           if board[7][6] == self.color: my_tiles += 1
           elif board[7][6] == oppColor: opp_tiles += 1
 
-      corner_closeness_score += (-100.0) * (my_tiles - opp_tiles) 
+      if (my_tiles + opp_tiles) > 0:
+        score += (-300.0) * (my_tiles - opp_tiles) / (my_tiles + opp_tiles)
 
-      score = b_w_score + d_score + frontier_score + mobility_score + corners_score + stable_edge_score + corner_closeness_score + partial_edge_score
-      
-      print 
-      for row in board:
-          print '      ', ' '.join(row).replace('B', 'X').replace('W', 'O').replace('G', '.')
-      print
-      print "BW Score: ", b_w_score
-      print "D: ",d_score
-      print "frontier tiles", my_frontier_tiles, opp_frontier_tiles
-      print "Frontier: ", frontier_score
-      print "Mobility:", mobility_score
-      print "Corners: ", corners_score
-      print "Stable edge: ", stable_edge_score
-      print "Corner Closeness", my_tiles, opp_tiles
-      print "Corner Closeness: ", corner_closeness_score
-      print "Partial Edge: ", partial_edge_score
-      print "Total score: ", score
-      print "##########################################"
-      print
-
-      
+      # print("Score:", score)
       return score
 
 
@@ -413,8 +378,8 @@ class YcSmartestPlayer:
   def findAllMovesHelper(self, board, color, oppColor, bitboard, checkHasMoveOnly=False):
       #code.interact(local=locals())
       b_color = 0 if color == 'W' else 1
-      if (bitboard,b_color) in self.savedMoves:
-        return self.toMoveList(self.savedMoves[(bitboard,b_color)])
+      # if (bitboard,b_color) in self.savedMoves:
+      #   return self.toMoveList(self.savedMoves[(bitboard,b_color)])
 
       moves = []
       for i in xrange(constants.BRD_SIZE):
@@ -425,7 +390,7 @@ class YcSmartestPlayer:
                       moves.append((i,j))
                       if checkHasMoveOnly: return moves
                       break
-      self.savedMoves[(bitboard,b_color)] = self.toMoveBoard(moves)
+      # self.savedMoves[(bitboard,b_color)] = self.toMoveBoard(moves)
       return moves
 
 
@@ -448,10 +413,6 @@ class YcSmartestPlayer:
       if validPos(newPos) and board[newPos[0]][newPos[1]] == color:
           return True
       return False
-
-  def validPos(self,pos):
-      return pos[0] >= 0 and pos[0] < constants.BRD_SIZE and \
-             pos[1] >= 0 and pos[1] < constants.BRD_SIZE
 
   def alphabeta(self,board, depth, alpha, beta, maximizingPlayer):
     # check if we've seen this board before
@@ -501,6 +462,6 @@ class YcSmartestPlayer:
             if beta <= alpha:
                 break
 
-    #self.memoize(bitboard,depth, v, bestMove)
+    # self.memoize(bitboard,depth, v, bestMove)
     return (v, bestMove)
 
