@@ -68,7 +68,10 @@ class YcSmartestPlayer:
       self.table[(bitboard, depth)] = (v, bestMove)
 
   def chooseMove(self,board,prevMove):
+      # start memory manager
       self.event = self.schedule.enter(60, 1, self.manageMemory, (board,))
+      self.schedule.run()
+
       color = self.color
       if   color == 'W': oppColor = 'B'
       elif color == 'B': oppColor = 'W'
@@ -78,7 +81,7 @@ class YcSmartestPlayer:
       print "Mb Used:", memory.getMemoryUsedMB()
       print "Move found, score:", result[0]
       print "Hit Percentage:", self.hits / self.calls * 100
-      while(!self.scheduler.empty())
+      while not (self.scheduler.empty()):
         scheduler.cancel(self.event)
       return result[1]
 
