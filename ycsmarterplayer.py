@@ -117,6 +117,22 @@ class YcSmarterPlayer:
       print "Mb Used:", memory.getMemoryUsedMB()
       print
 
+      # stop memory management
+      # print 'Unscheduling Check Events...'
+      while not (self.scheduler.empty()):
+        self.scheduler.cancel(self.scheduler.queue[0])
+      assert self.scheduler.empty()
+
+      # print 'Done...'
+      # print 'Waiting for manager to exit...'
+      self.manager.join()
+      # print 'Management Stopped...'
+      # print 'Returning Result...'
+      print
+
+      # return result.
+      return result[1]
+
   def gameEnd(self,board):
       return
 
@@ -265,8 +281,9 @@ class YcSmarterPlayer:
 
   def findAllMovesHelper(self, board, color, oppColor, bitboard, checkHasMoveOnly=False):
       #code.interact(local=locals())
-      if (bitboard,color) in self.savedMoves:
-        return self.savedMoves[(bitboard,color)]
+      b_color = 0 if color == 'W' else 1
+      if (bitboard,b_color) in self.savedMoves:
+        return self.savedMoves[(bitboard,b_color)]
 
       moves = []
       for i in xrange(constants.BRD_SIZE):
@@ -277,7 +294,7 @@ class YcSmarterPlayer:
                       moves.append((i,j))
                       if checkHasMoveOnly: return moves
                       break
-      self.savedMoves[(bitboard,color)] = moves
+      self.savedMoves[(bitboard,b_color)] = moves
       return moves
 
   def validMove(self, board, pos, ddir, color, oppColor):

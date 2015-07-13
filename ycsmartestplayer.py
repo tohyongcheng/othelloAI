@@ -408,7 +408,7 @@ class YcSmartestPlayer:
       if validPos(newPos) and board[newPos[0]][newPos[1]] == color:
           return True
       return False
-    
+
   def alphabeta(self,board, depth, alpha, beta, maximizingPlayer):
     # check if we've seen this board before
     self.calls += 1
