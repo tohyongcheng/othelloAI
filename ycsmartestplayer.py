@@ -56,17 +56,48 @@ class YcSmartestPlayer:
       self.hits = 0.0
 
   def manageMemory(self,board):
-    self.event = self.scheduler.enter(1, 1, self.manageMemory, (board,))
-    print
-    print "Manager:"
+    self.event = self.scheduler.enter(3, 1, self.manageMemory, (board,))
     memUsedMB = memory.getMemoryUsedMB()
-    print "Mb Used:", memory.getMemoryUsedMB
     if memUsedMB > constants.MEMORY_LIMIT_MB - 10: #If I am close to memory limit
-        #don't allocate memory, limit search depth, etc.
-        # we just flush the table
-        print 'flushing'
-        self.table = {}
-        self.savedMoves = {}
+        print
+        print "Manager: Memory exceeded!"
+        print "Memory used:", memUsedMB
+        print 'Mangater: Reducing Memory...'
+        self.removeKeys(board)
+        memUsedMB = memory.getMemoryUsedMB()
+        print "New Memory used:", memUsedMB
+
+        if memUsedMB > constants.MEMORY_LIMIT_MB - 10: #If I am close to memory limit
+          print "Not Good Enough...FLUSHING EM ALL!", memUsedMB
+          self.table = {}
+          self.savedMoves = {}
+          print
+
+  def removeKeys(self,board):
+      bitboard = self.toBitBoard(board)
+      currentPieces = self.countpieces(bitboard)
+
+      keys = self.table.keys()
+      bbs = [k[0] for k in keys]
+      toDelete = map(lambda x: self.countpieces(x) <= currentPieces, bbs)
+      for i,key in enumerate(keys):
+        if toDelete[i]: self.table.pop(key)
+      self.table = self.table.copy()
+
+      keys = self.savedMoves.keys()
+      bbs = [k[0] for k in keys]
+      toDelete = map(lambda x: self.countpieces(x) <= currentPieces, bbs)
+      for i,key in enumerate(keys):
+        if toDelete[i]: self.savedMoves.pop(key)
+      self.savedMoves = self.savedMoves.copy()
+
+  def countpieces(self, bitboard):
+      bitboard = bitboard[0] ^ bitboard[1]
+      count = 0
+      while bitboard != 0:
+        count += bitboard & 1
+        bitboard >>= 1
+      return count
 
   def memoize(self, bitboard, depth, v, bestMove):
       self.table[(bitboard, depth)] = (v, bestMove)
@@ -74,7 +105,7 @@ class YcSmartestPlayer:
   def chooseMove(self,board,prevMove):
       # start memory management
       print 'Running Memory Manager in its own thread...'
-      self.event = self.scheduler.enter(1, 1, self.manageMemory, (board,))
+      self.event = self.scheduler.enter(3, 1, self.manageMemory, (board,))
       self.manager = Thread(target= self.scheduler.run)
       self.manager.start()
 
@@ -93,7 +124,6 @@ class YcSmartestPlayer:
       # stop memory management
       print 'Unscheduling Check Events...'
       while not (self.scheduler.empty()):
-        print 'left in queue:', self.scheduler.queue
         self.scheduler.cancel(self.scheduler.queue[0])
       assert self.scheduler.empty()
 
