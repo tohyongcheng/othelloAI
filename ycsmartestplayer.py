@@ -250,21 +250,14 @@ class YcSmartestPlayer:
           if corner[1] == 0: ranges[1] = [1,8,1]
           else: ranges[1] = [-1,-8,-1]
 
-          current_edge_sq_score = 0
           for i in xrange(ranges[0][0],ranges[0][1], ranges[0][2]):
-            if board[corner[0]+i][corner[1]] == self.color: current_edge_sq_score += 1
-            elif board[corner[0]+i][corner[1]] == oppColor: break
-            else: current_edge_sq_score *= 0.5
-
-          my_stable_edge_sq += current_edge_sq_score
+            if board[corner[0]+i][corner[1]] == self.color: my_stable_edge_sq += 1
+            else: break
           
-          current_edge_sq_score = 0
           for i in xrange(ranges[1][0], ranges[1][1], ranges[1][2]):
             if board[corner[0]][corner[1]+i] == self.color: my_stable_edge_sq += 1
-            elif board[corner[0]][corner[1]+i] == oppColor: break
-            else: current_edge_sq_score *= 0.5
+            else: break
 
-          my_stable_edge_sq += current_edge_sq_score
 
         elif board[corner[0]][corner[1]] == oppColor:
           opp_corners += 1
@@ -277,19 +270,13 @@ class YcSmartestPlayer:
 
           current_edge_sq_score = 0
           for i in xrange(ranges[0][0],ranges[0][1], ranges[0][2]):
-            if board[corner[0]+i][corner[1]] == oppColor: current_edge_sq_score += 1
-            elif board[corner[0]+i][corner[1]] == self.color: break
-            else: current_edge_sq_score *= 0.5
-
-          opp_stable_edge_sq += current_edge_sq_score
+            if board[corner[0]+i][corner[1]] == oppColor: opp_stable_edge_sq += 1
+            else: break
           
           current_edge_sq_score = 0
           for i in xrange(ranges[1][0], ranges[1][1], ranges[1][2]):
-            if board[corner[0]][corner[1]+i] == oppColor: my_stable_edge_sq += 1
-            elif board[corner[0]][corner[1]+i] == self.color: break
-            else: current_edge_sq_score *= 0.5
-
-          opp_stable_edge_sq += current_edge_sq_score
+            if board[corner[0]][corner[1]+i] == oppColor: opp_stable_edge_sq += 1
+            else: break
 
 
       if (my_corners + opp_corners) > 0:
