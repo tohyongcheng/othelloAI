@@ -154,7 +154,7 @@ class YcSmartestPlayer:
 
   def toBitBoard(self,board):
       #helper function that turns a board to a bitboard
-      whiteBoard = 0
+      whiteBoard = 0 # dw about starting 0s... can handle automatically what!
       blackBoard = 0
       for i in xrange(constants.BRD_SIZE):
           for j in xrange(constants.BRD_SIZE):
@@ -357,11 +357,31 @@ class YcSmartestPlayer:
               elif color == 'B': b += 1
       return w, b
 
+  # invariant list = toMoveList(toMoveBoard(list))
+  def toMoveList(self,moveboard):
+      moves = []
+      for i in range(8):
+        for j in range(8):
+          b = moveboard & 1
+          if b == 1: moves.append((7-i,7-j))
+          moveboard >>= 1
+      moves.reverse()
+      return moves # we dont want to change the heursitics
+
+  def toMoveBoard(self,moves):
+      moveBoard = 0
+      for i in range(8):
+        for j in range(8):
+          moveBoard <<= 1
+          if (i,j) in moves: moveBoard+=1
+      moveBoard
+      return moveBoard
+
   def findAllMovesHelper(self, board, color, oppColor, bitboard, checkHasMoveOnly=False):
       #code.interact(local=locals())
       b_color = 0 if color == 'W' else 1
       if (bitboard,b_color) in self.savedMoves:
-        return self.savedMoves[(bitboard,b_color)]
+        return self.toMoveList(self.savedMoves[(bitboard,b_color)])
 
       moves = []
       for i in xrange(constants.BRD_SIZE):
@@ -372,7 +392,7 @@ class YcSmartestPlayer:
                       moves.append((i,j))
                       if checkHasMoveOnly: return moves
                       break
-      self.savedMoves[(bitboard,b_color)] = moves
+      self.savedMoves[(bitboard,b_color)] = self.toMoveBoard(moves)
       return moves
 
 
