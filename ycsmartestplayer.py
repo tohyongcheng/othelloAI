@@ -78,6 +78,8 @@ class YcSmartestPlayer:
       print "Mb Used:", memory.getMemoryUsedMB()
       print "Move found, score:", result[0]
       print "Hit Percentage:", self.hits / self.calls * 100
+      while(!self.scheduler.empty())
+        scheduler.cancel(self.event)
       return result[1]
 
 
