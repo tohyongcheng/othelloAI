@@ -6,8 +6,8 @@ import client, randomplayer, smartplayer, ycsmarterplayer, ycsmartestplayer, ycs
 # whitePlayer = smartplayer.SmartPlayer('W')
 # whitePlayer = ycsmarterplayer.YcSmarterPlayer('W')
 # whitePlayer = ycsmartestplayer_no_memo.YcSmartestPlayer('W')
-# whitePlayer = ycsmartestplayer.YcSmartestPlayer('W')
-whitePlayer = nonrandomplayer.NonRandomPlayer('W')
+whitePlayer = ycsmartestplayer_no_memo.YcSmartestPlayer('W')
+# whitePlayer = nonrandomplayer.NonRandomPlayer('W')
 
 whiteClient = client.Client(whitePlayer)
 whiteClient.run()

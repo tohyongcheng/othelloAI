@@ -6,6 +6,7 @@ import client, randomplayer, smartplayer, ycsmarterplayer, ycsmartestplayer, ycs
 # blackPlayer = smartplayer.SmartPlayer('B')
 # blackPlayer = ycsmarterplayer.YcSmarterPlayer('B')
 blackPlayer = ycsmartestplayer_no_memo.YcSmartestPlayer('B')
+# blackPlayer = nonrandomplayer.NonRandomPlayer('B')
 
 
 blackClient = client.Client(blackPlayer)

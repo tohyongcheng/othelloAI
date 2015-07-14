@@ -55,7 +55,7 @@ weights = { "b_w_score": 0.1,
             "corners_score": 20.0,
             "diagonal_stability_score": 6.0,
             "horizontal_stability_score": 6.0,
-            "corner_closeness_score": 0.0,
+            "corner_closeness_score": 4.0,
             "partial_edge_score": 20.0
           }
 

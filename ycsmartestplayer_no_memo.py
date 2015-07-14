@@ -60,7 +60,7 @@ class YcSmartestPlayer:
       self.table = {}
       self.savedMoves = {}
       self.board_evaluation_count = None
-      self.depth = 4
+      self.depth = 6
 
       ### Memory Management
       self.manager = None
