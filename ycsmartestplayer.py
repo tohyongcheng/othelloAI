@@ -1,4 +1,4 @@
-import random, memory, constants
+import random, memory, constants,copy
 import sched, time
 from threading import Thread
 
@@ -38,14 +38,37 @@ tryWeights.append([8, 1, 2, -3, -3, 2, 1, 8])
 tryWeights.append([11, -4, 2, 2, 2, 2, -4, 11])
 tryWeights.append([-3, -7, -4, 1, 1, -4, -7, -3])
 tryWeights.append([20, -3, 11, 8, 8, 11, -3, 20])
+anotherWeights = [ [40, -13, 2.7, 2.6, 2.6, 2.7, -13,  40],
+                   [-13, -13, -.8, -.8, -.8, -.8, -13, -13],
+                   [2.7, -.8, 1.5, 1.3, 1.3, 1.5, -.8, 2.7],
+                   [2.6, -.8, 1.3,   1,   1, 1.3, -.8, 2.6],
+                   [2.6, -.8, 1.3,   1,   1, 1.3, -.8, 2.6],
+                   [2.7, -.8, 1.5, 1.3, 1.3, 1.5, -.8, 2.7],
+                   [-13, -13, -.8, -.8, -.8, -.8, -13, -13],
+                   [40, -13, 2.7, 2.6, 2.6, 2.7, -13,  40] ]
 
+# b_w_score + d_score + frontier_score + mobility_score + corners_score + diagonal_stability_score + horizontal_stability_score + corner_closeness_score + partial_edge_score
+weights = { "b_w_score": 0.1,
+            "d_score": 1.0,
+            "frontier_score": 4.0,
+            "mobility_score": 4.0,
+            "corners_score": 20.0,
+            "diagonal_stability_score": 6.0,
+            "horizontal_stability_score": 6.0,
+            "corner_closeness_score": 0.0,
+            "partial_edge_score": 20.0
+          }
 
 class YcSmartestPlayer:
 
   def __init__(self,color):
       self.color = color
+      self.player_color = color
+      self.other_color = self.oppositeColor(color)
       self.table = {}
       self.savedMoves = {}
+      self.board_evaluation_count = None
+      self.depth = 4
 
       ### Memory Management
       self.manager = None
@@ -80,7 +103,7 @@ class YcSmartestPlayer:
       keys = self.table.keys()
       bbs = [k[0] for k in keys]
       toDelete = map(lambda x: self.countpieces(x) <= currentPieces, bbs)
-      print "Deleting:", reduce(lambda a,x: x + 1 if a else a , toDelete)
+      print "Deleting:", reduce(lambda a,x: a + 1 if x else a , toDelete)
       for i,key in enumerate(keys):
         if toDelete[i]: self.table.pop(key)
       self.table = self.table.copy()
@@ -88,7 +111,7 @@ class YcSmartestPlayer:
       keys = self.savedMoves.keys()
       bbs = [k[0] for k in keys]
       toDelete = map(lambda x: self.countpieces(x) <= currentPieces, bbs)
-      print "Deleting:", reduce(lambda a,x: x + 1 if a else a , toDelete)
+      print "Deleting:", reduce(lambda a,x: a + 1 if x else a , toDelete)
       for i,key in enumerate(keys):
         if toDelete[i]: self.savedMoves.pop(key)
       self.savedMoves = self.savedMoves.copy()
@@ -119,16 +142,14 @@ class YcSmartestPlayer:
       elif color == 'B': oppColor = 'W'
       else: assert False, 'ERROR: Current player is not W or B!'
 
-      if self.no_of_corners_occupied(board) >= 2 and sum(self.computeScore(board)) > 50:
-        result = self.alphabeta(board, 14, -constants.INFINITY, constants.INFINITY, True)
-      else:
-        result = self.alphabeta(board, 4, -constants.INFINITY, constants.INFINITY, True)
+      if sum(self.computeScore(board)) >= 50:
+        self.depth = 14
 
-      print
-      print "Move found, score:", result[0]
-      print "Hit Percentage:", self.hits / self.calls * 100
-      print "Mb Used:", memory.getMemoryUsedMB()
-      print
+      result = self.alphabeta(board, self.depth, -constants.INFINITY, constants.INFINITY, True)
+
+
+      # result = self.heuristic_negamax(board, self.player_color, self.other_color, 6)
+      
 
       # stop memory management
       # print 'Unscheduling Check Events...'
@@ -171,33 +192,54 @@ class YcSmartestPlayer:
 
       return (whiteBoard,blackBoard)
 
-  def evaluate(self,board, bitboard):
+  def evaluate(self,board, bitboard, endGame = False):
       score = 0.0
 
       oppColor = self.oppositeColor(self.color)
-
-      # Coin Parity
-      b_w_score = 0.0
       b,w = self.computeScore(board)
+      
+
+      # weights["b_w_score"] = 1.0 + 3.0*(b+w)/64
+      # weights["d_score"] = 0.0
+      # weights["frontier_score"] = 5.0 + (-3.0)*(b+w)/64
+      # weights["mobility_score"] = 5.0 + 3.0*(b+w)/64
+      # weights["corners_score"] = 25.0 + -10.0*(b+w)/64
+      # weights["diagonal_stability_score"] = 1.0 + 5.0*(b+w)/64
+      # weights["horizontal_stability_score"] = 1.0 + 5.0*(b+w)/64
+      # weights["corner_closeness_score"] = 10.0 + -20.0*(b+w)/64
+      # weights["partial_edge_score"] = 15.0 + -10.0*(b+w)/64
+
+      b_w_score = 0.0
+      # Coin Parity
       if self.color == "W":
         b_w_score += (w-b)
       else:
         b_w_score += (b-w)
-      b_w_score *= 1.0
+
+      b_w_score *= weights["b_w_score"]
+
+      if endGame:
+        return b_w_score*10000
       
-      
+      # Mobility
+      mobility_score = 0.0
+      my_moves = len(self.findAllMovesHelper(board, self.color, oppColor, bitboard)) or -9
+      opp_moves = len(self.findAllMovesHelper(board, oppColor, self.color, bitboard)) or -9
+      mobility_score += weights["mobility_score"] * (my_moves - opp_moves) 
+
       # Feature Weights on squares dependent on game stage
       my_frontier_tiles = opp_frontier_tiles = 0.0
       my_d = 0.0
       opp_d = 0.0
       
-      currentStageWeights = openingWeights
-      if self.no_of_corners_occupied(board) >= 2:
-      # if (b+w) >= 52:
-        currentStageWeights = endWeights
-      elif self.disc_present_on_edges(board):
-        currentStageWeights = middleWeights
-      # currentStageWeights = tryWeights
+      # currentStageWeights = openingWeights
+      # if self.no_of_corners_occupied(board) >= 2:
+      #   currentStageWeights = endWeights
+      # elif self.disc_present_on_edges(board):
+      #   currentStageWeights = middleWeights
+      # currentStageWeights = anotherWeights
+      currentStageWeights = tryWeights
+
       for i in xrange(8):
         for j in xrange(8):
           if board[i][j] == self.color:
@@ -213,78 +255,138 @@ class YcSmartestPlayer:
                 else:
                   opp_frontier_tiles += 1
 
-      # print("D:", d)
-      d_score = 2.0 * ( my_d - opp_d )
+      d_score = weights["d_score"] * ( my_d - opp_d )
 
       # Frontier Score - Potential Mobility
       frontier_score = 0.0
-      if my_frontier_tiles > opp_frontier_tiles:
-        frontier_score += -(5.0 * my_frontier_tiles)
-      elif my_frontier_tiles < opp_frontier_tiles:
-        frontier_score += (5.0 * opp_frontier_tiles)
-        
+      frontier_score += weights["frontier_score"] * -(my_frontier_tiles - opp_frontier_tiles)
 
-      # Mobility
-      mobility_score = 0.0
-      my_moves = len(self.findAllMovesHelper(board, self.color, oppColor, bitboard)) or -9
-      opp_moves = len(self.findAllMovesHelper(board, oppColor, self.color, bitboard)) or -9
-      if (my_moves + opp_moves) != 0:
-        mobility_score += 20.0 * (my_moves - opp_moves) 
-
-      # Corners Capture + Edge Stability
+      # Corners Capture + Horizontal Stability (+ Edge Stability)
       my_corners = 0.0
       opp_corners = 0.0
-      my_stable_edge_sq = 0.0
-      opp_stable_edge_sq = 0.0
       corners = [[0,0],[0,7],[7,7],[7,0]]
+      directions = [[0,1], [1,0], [0,-1], [-1,0],[0,1]]
 
-      # corner [0,0]
+      idx = 0
+      my_semi_stable_sq = set()
+      opp_semi_stable_sq = set()
       for corner in corners:
         if board[corner[0]][corner[1]] == self.color:
           my_corners += 1
-
-          ranges = [[],[]]
-          if corner[0] == 0: ranges[0] = [1,8,1]
-          else: ranges[0] = [-1,-8,-1]
-          if corner[1] == 0: ranges[1] = [1,8,1]
-          else: ranges[1] = [-1,-8,-1]
-
-          for i in xrange(ranges[0][0],ranges[0][1], ranges[0][2]):
-            if board[corner[0]+i][corner[1]] == self.color: my_stable_edge_sq += 1
-            else: break
-          
-          for i in xrange(ranges[1][0], ranges[1][1], ranges[1][2]):
-            if board[corner[0]][corner[1]+i] == self.color: my_stable_edge_sq += 1
-            else: break
-
+          edge_squares = []
+          sq = (corner[0], corner[1])
+          while(self.validPos((sq[0],sq[1])) and board[sq[0]][sq[1]] == self.color):
+            sq = (sq[0]+directions[idx][0],sq[1]+directions[idx][1])
+            edge_squares.append(sq)
+          height = 8
+          for sq in edge_squares:
+            idx_2 = 0
+            while(self.validPos((sq[0],sq[1])) and board[sq[0]][sq[1]] == self.color):
+              idx_2 += 1
+              sq = (sq[0] + directions[idx+1][0], sq[1] + directions[idx+1][1])
+              my_semi_stable_sq.add(sq)
+            height = min(height, idx_2)
 
         elif board[corner[0]][corner[1]] == oppColor:
           opp_corners += 1
-
-          ranges = [[],[]]
-          if corner[0] == 0: ranges[0] = [1,8,1]
-          else: ranges[0] = [-1,-8,-1]
-          if corner[1] == 0: ranges[1] = [1,8,1]
-          else: ranges[1] = [-1,-8,-1]
-
-          for i in xrange(ranges[0][0],ranges[0][1], ranges[0][2]):
-            if board[corner[0]+i][corner[1]] == oppColor: opp_stable_edge_sq += 1
-            else: break
-          
-          for i in xrange(ranges[1][0], ranges[1][1], ranges[1][2]):
-            if board[corner[0]][corner[1]+i] == oppColor: opp_stable_edge_sq += 1
-            else: break
-
-
+          edge_squares = []
+          sq = (corner[0], corner[1])
+          while(self.validPos((sq[0],sq[1])) and board[sq[0]][sq[1]] == oppColor):
+            sq = (sq[0]+directions[idx][0],sq[1]+directions[idx][1])
+            edge_squares.append(sq)
+          height = 8
+          for sq in edge_squares:
+            idx_2 = 0
+            while(self.validPos((sq[0],sq[1])) and board[sq[0]][sq[1]] == oppColor):
+              idx_2 += 1
+              sq = (sq[0] + directions[idx+1][0], sq[1] + directions[idx+1][1])
+              opp_semi_stable_sq.add(sq)
+            height = min(height, idx_2)
+        idx += 1
+      
       corners_score = 0.0
-      if (my_corners + opp_corners) > 0:
-        corners_score += 1000.0 * (my_corners - opp_corners)
-        
+      corners_score += weights["corners_score"]* (my_corners - opp_corners)
 
-      stable_edge_score = 0.0
-      if (my_stable_edge_sq + opp_stable_edge_sq) > 0:
-        stable_edge_score += 200.0 * (my_stable_edge_sq - opp_stable_edge_sq)
-        
+      horizontal_stability_score = 0.0
+      horizontal_stability_score += weights["horizontal_stability_score"] * (len(my_semi_stable_sq) - len(opp_semi_stable_sq))
+      
+      # Diagonal Stability
+      my_diagonal_sq = set()
+      opp_diagonal_sq = set()
+      #   diagonal 1 - own
+      starters = ((7,0), (6,0), (5,0), (4,0), (3,0), (2,0), (1,0), (0,0), (0,1), (0,2), (0,3), (0,4), (0,5), (0,6), (0,7))
+      for starter in starters:
+        isFilled = True
+        i,j = starter
+        while self.validPos((i,j)):
+          if board[i][j] != self.color:
+            isFilled = False
+            break
+          i += 1
+          j += 1
+        if isFilled:
+          i,j = starter
+          while self.validPos((i,j)):
+            my_diagonal_sq.add((i,j))
+            i+=1
+            j+=1
+
+      #   diagonal 1 - opp
+      for starter in starters:
+        isFilled = True
+        i,j = starter
+        while self.validPos((i,j)):
+          if board[i][j] != oppColor:
+            isFilled = False
+            break
+          i += 1
+          j += 1
+        if isFilled:
+          i,j = starter
+          while self.validPos((i,j)):
+            opp_diagonal_sq.add((i,j))
+            i+=1
+            j+=1
+
+      #   diagonal 2 - own
+      starters = ((7,0), (6,0), (5,0), (4,0), (3,0), (2,0), (1,0), (0,0), (0,1), (0,2), (0,3), (0,4), (0,5), (0,6), (0,7))
+      for starter in starters:
+        isFilled = True
+        i,j = starter
+        while self.validPos((i,j)):
+          if board[i][j] != self.color:
+            isFilled = False
+            break
+          i -= 1
+          j += 1
+        if isFilled:
+          i,j = starter
+          while self.validPos((i,j)):
+            my_diagonal_sq.add((i,j))
+            i-=1
+            j+=1
+
+      #   diagonal 2 - own
+      starters = ((7,0), (6,0), (5,0), (4,0), (3,0), (2,0), (1,0), (0,0), (0,1), (0,2), (0,3), (0,4), (0,5), (0,6), (0,7))
+      for starter in starters:
+        isFilled = True
+        i,j = starter
+        while self.validPos((i,j)):
+          if board[i][j] != oppColor:
+            isFilled = False
+            break
+          i -= 1
+          j += 1
+        if isFilled:
+          i,j = starter
+          while self.validPos((i,j)):
+            opp_diagonal_sq.add((i,j))
+            i-=1
+            j+=1
+
+      diagonal_stability_score = 0.0
+      diagonal_stability_score += weights["diagonal_stability_score"]  * (len(my_diagonal_sq) - len(opp_diagonal_sq))
+
 
       edges = [board[0][2:6], board[7][2:6], [col[0] for col in board[2:6]], [col[7] for col in board[2:6]]]
       white_partial_edges = sum(edge.count('W') == 4 for edge in edges)
@@ -293,9 +395,9 @@ class YcSmartestPlayer:
       partial_edge_score = 0.0
       if (white_partial_edges + black_partial_edges) > 0:
         if self.color == "W":
-          partial_edge_score = 1000.0 * (white_partial_edges - black_partial_edges)*1.0
+          partial_edge_score = weights["partial_edge_score"] * (white_partial_edges - black_partial_edges)
         else:
-          partial_edge_score = 1000.0 * (black_partial_edges - white_partial_edges)*1.0 
+          partial_edge_score = weights["partial_edge_score"] * (black_partial_edges - white_partial_edges)
     
       # Corner Closeness
       corner_closeness_score = 0.0
@@ -333,22 +435,24 @@ class YcSmartestPlayer:
           if board[7][6] == self.color: my_tiles += 1
           elif board[7][6] == oppColor: opp_tiles += 1
 
-      corner_closeness_score += (-100.0) * (my_tiles - opp_tiles) 
+      corner_closeness_score += weights["corner_closeness_score"] * -(my_tiles - opp_tiles) 
 
-      score = b_w_score + d_score + frontier_score + mobility_score + corners_score + stable_edge_score + corner_closeness_score + partial_edge_score
+      score = b_w_score + d_score + frontier_score + mobility_score + corners_score + diagonal_stability_score + horizontal_stability_score + corner_closeness_score + partial_edge_score
       
       print 
+      print "Current Board: "
       for row in board:
           print '      ', ' '.join(row).replace('B', 'X').replace('W', 'O').replace('G', '.')
       print
+      print "Current Player", self.color, self.color.replace('B', 'X').replace('W', 'O')
+      print "Opponent Player", oppColor, oppColor.replace('B', 'X').replace('W', 'O')
       print "BW Score: ", b_w_score
-      print "D: ",d_score
-      print "frontier tiles", my_frontier_tiles, opp_frontier_tiles
+      print "Weighted Square: ",d_score
       print "Frontier: ", frontier_score
       print "Mobility:", mobility_score
-      print "Corners: ", corners_score
-      print "Stable edge: ", stable_edge_score
-      print "Corner Closeness", my_tiles, opp_tiles
+      print "Corners Captire: ", corners_score
+      print "Diagonal Stability: ", diagonal_stability_score
+      print "Horizontal Stability: ", horizontal_stability_score
       print "Corner Closeness: ", corner_closeness_score
       print "Partial Edge: ", partial_edge_score
       print "Total score: ", score
@@ -453,7 +557,22 @@ class YcSmartestPlayer:
       return pos[0] >= 0 and pos[0] < constants.BRD_SIZE and \
              pos[1] >= 0 and pos[1] < constants.BRD_SIZE
 
-  def alphabeta(self,board, depth, alpha, beta, maximizingPlayer):
+
+  def addToPos(self,pos,ddir):
+          return (pos[0]+ddir[0], pos[1]+ddir[1])
+
+  def makeMove(self,board, pos, color):
+      board[pos[0]][pos[1]] = color
+      oppColor = self.oppositeColor(color)
+
+      for ddir in constants.DIRECTIONS:
+          if self.validMove(board, pos, ddir, color, oppColor):
+              newPos = self.addToPos(pos, ddir)
+              while board[newPos[0]][newPos[1]] == oppColor:
+                  board[newPos[0]][newPos[1]] = color
+                  newPos = self.addToPos(newPos, ddir)
+
+  def alphabeta(self,board, depth, alpha, beta, maximizingPlayer, skip=False):
     # check if we've seen this board before
     self.calls += 1
     bitboard = self.toBitBoard(board)
@@ -468,39 +587,67 @@ class YcSmartestPlayer:
 
     moves = self.findAllMovesHelper(board, currentColor, self.oppositeColor(currentColor), bitboard)
 
-    if depth == 0 or len(moves) == 0:
+    if sum(self.computeScore(board)) == 64:
+        return (self.evaluate(board,bitboard,True),None)
+    if depth == 0:
         v = self.evaluate(board, bitboard)
         # self.memoize(bitboard, depth, v , None)
         return (v, None)
 
+    if len(moves) == 0:
+      maximizingPlayer = not maximizingPlayer
+      if skip == True:
+        return (self.evaluate(board,bitboard, True), None)
+      else:
+        return self.alphabeta(board, depth-1, alpha, beta, maximizingPlayer, True)
+
+
+
     bestMove = None
+    printMoves = {}
     if maximizingPlayer:
         v = -constants.INFINITY
         for move in moves:
-            board[move[0]][move[1]] = currentColor
-            score = self.alphabeta(board, depth -1, alpha, beta, False)
+            boardCopy = copy.deepcopy(board)
+            # make move
+            # board[move[0]][move[1]] = currentColor
+            self.makeMove(boardCopy, move, self.color)
+            score = self.alphabeta(boardCopy, depth -1, alpha, beta, False)
+            
+            if depth == self.depth:
+              printMoves[move] = score[0]
+
             if score[0] > v:
               bestMove = move
               v = score[0]
 
             alpha = max(alpha, v)
-            board[move[0]][move[1]] = 'G'
             if beta <= alpha:
                 break
     else:
         v = constants.INFINITY
         for move in moves:
-            board[move[0]][move[1]] = currentColor
-            score = self.alphabeta(board, depth -1, alpha, beta, True)
+            boardCopy = copy.deepcopy(board)
+            #make move
+            self.makeMove(boardCopy, move, self.oppositeColor(self.color))
+            score = self.alphabeta(boardCopy, depth -1, alpha, beta, True)
             if score[0] < v:
               bestMove = move
               v = score[0]
 
             beta = min(beta, v)
-            board[move[0]][move[1]] = 'G'
             if beta <= alpha:
                 break
 
+
+    if depth == self.depth:
+      print printMoves
+      print "Current Board: "
+      for row in board:
+          print '      ', ' '.join(row).replace('B', 'X').replace('W', 'O').replace('G', '.')
+      print
+      print
+      print
+      
     #self.memoize(bitboard,depth, v, bestMove)
     return (v, bestMove)
-

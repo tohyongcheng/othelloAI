@@ -1,10 +1,10 @@
 MOVE_SEC      = 0.1  #time to pause after move so that it can viewed
 
 #below are the TCP/IP info for connecting servers and clients
-TCP_PORT_1 = 12342
-TCP_PORT_2 = 12452
+TCP_PORT_1 = 12341
+TCP_PORT_2 = 12451
 BUF_SIZE   = 10240
-# TCP_IP     = '10.12.1.207'
+# TCP_IP     = '10.12.2.160'
 TCP_IP     = 'localhost'
 
 TIME_BUF_SEC    =  1*60
